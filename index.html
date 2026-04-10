@@ -128,6 +128,7 @@
     .preview-sort { color: #60a5fa; }
     .preview-write { color: #f472b6; }
     .preview-dab { color: #a78bfa; }
+    .preview-emotion { color: #f472b6; font-size: 48px; }
 
     footer {
       text-align: center;
@@ -176,6 +177,22 @@
         <span class="tag">export</span>
       </div>
       <a class="card-link" href="dab/index.html">Open editor &rarr;</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-preview">
+      <span class="preview-emotion" id="p-emotion"></span>
+    </div>
+    <div class="card-body">
+      <div class="card-title">Emotions</div>
+      <div class="card-desc">20 expressive braille faces on a radial picker. Static and animated expressions mapped across valence and arousal.</div>
+      <div class="card-tags">
+        <span class="tag">faces</span>
+        <span class="tag">radial menu</span>
+        <span class="tag">library</span>
+      </div>
+      <a class="card-link" href="emotions/index.html">Open emotions &rarr;</a>
     </div>
   </div>
 
@@ -321,6 +338,48 @@ function genWrite(text) {
   for (let i = 0; i < 20; i++) frames.push(blank);
   return frames;
 }
+
+// Emotion face preview — cycle through a few expressions
+function gridToBraille8(grid, cellCols, cellRows) {
+  const lines = [];
+  for (let cr = 0; cr < cellRows; cr++) {
+    let line = '';
+    for (let cc = 0; cc < cellCols; cc++) {
+      let mask = 0;
+      for (let r = 0; r < 4; r++) {
+        for (let c = 0; c < 2; c++) {
+          const gr = cr * 4 + r, gc = cc * 2 + c;
+          if (gr < grid.length && gc < grid[0].length && grid[gr][gc]) {
+            mask |= dotBits[r][c];
+          }
+        }
+      }
+      line += String.fromCharCode(0x2800 + mask);
+    }
+    lines.push(line);
+  }
+  return lines.join('\n');
+}
+
+const emotionFaces = [
+  // happy
+  [[0,1,1,0,0,1,1,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,1,0,0,0,0,1,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,1,0,0,0,0,1,0],[0,0,1,1,1,1,0,0]],
+  // neutral
+  [[0,0,0,0,0,0,0,0],[0,1,1,0,0,1,1,0],[0,0,0,0,0,0,0,0],[0,1,0,0,0,0,1,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,1,1,1,1,1,1,0],[0,0,0,0,0,0,0,0]],
+  // sad
+  [[0,0,0,0,0,0,0,0],[0,0,1,0,0,1,0,0],[0,1,0,0,0,0,1,0],[0,0,1,0,0,1,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,1,1,1,1,0,0],[0,1,0,0,0,0,1,0]],
+  // love
+  [[0,1,1,0,0,1,1,0],[0,0,0,0,0,0,0,0],[0,1,0,1,1,0,1,0],[0,0,1,0,0,1,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,1,0,0,0,0,1,0],[0,0,1,1,1,1,0,0]],
+];
+
+const emEl = document.getElementById('p-emotion');
+let emIdx = 0;
+function showEmotionFace() {
+  emEl.textContent = gridToBraille8(emotionFaces[emIdx], 4, 2);
+  emIdx = (emIdx + 1) % emotionFaces.length;
+}
+showEmotionFace();
+setInterval(showEmotionFace, 1500);
 
 animate(document.getElementById('hero'), genWrite('BRAILLE LAB'), 40);
 animate(document.getElementById('p-pendulum'), genPendulum(8, 1), 12);

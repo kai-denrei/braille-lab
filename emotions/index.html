@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emotions — Braille Lab</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0a0a0a;
+      color: #e0e0e0;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header {
+      padding: 2rem 1rem 0.5rem;
+      text-align: center;
+    }
+
+    header a {
+      font-size: 11px;
+      color: #555;
+      text-decoration: none;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+    }
+
+    header a:hover { color: #888; }
+
+    h1 {
+      font-size: 13px;
+      font-weight: 400;
+      color: #666;
+      margin-top: 0.5rem;
+      letter-spacing: 0.15em;
+    }
+
+    .main {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 700px;
+      padding: 0 1rem;
+    }
+
+    /* ===== MOCK TERMINAL ===== */
+    .terminal {
+      width: 100%;
+      max-width: 560px;
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 6px;
+      overflow: hidden;
+      margin: 1.5rem 0;
+    }
+
+    .term-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: #181818;
+      border-bottom: 1px solid #222;
+    }
+
+    .term-title {
+      font-size: 11px;
+      color: #555;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .term-body {
+      padding: 12px 14px;
+      font-size: 13px;
+      line-height: 1.6;
+      min-height: 80px;
+    }
+
+    .term-prompt {
+      color: #555;
+    }
+
+    .term-prompt .user { color: #888; }
+    .term-prompt .at { color: #555; }
+    .term-prompt .host { color: #888; }
+    .term-prompt .path { color: #777; }
+    .term-prompt .dollar { color: #555; }
+
+    .term-output {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    #term-face {
+      font-size: 14px;
+      line-height: 1;
+      color: #e0e0e0;
+      white-space: pre;
+    }
+
+    #term-label {
+      font-size: 12px;
+      color: #888;
+    }
+
+    #term-braille {
+      font-size: 11px;
+      color: #555;
+    }
+
+    .term-line {
+      margin-top: 6px;
+    }
+
+    /* ===== CONTROLS ===== */
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .ctrl-btn {
+      font-size: 11px;
+      font-family: inherit;
+      padding: 4px 12px;
+      border-radius: 4px;
+      border: 1px solid #333;
+      background: #151520;
+      color: #aaa;
+      cursor: pointer;
+    }
+
+    .ctrl-btn:hover { background: #1e1e2e; color: #ddd; }
+    .ctrl-btn.active { border-color: #555; color: #e0e0e0; background: #1a1a2e; }
+
+    .fps-control {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: #555;
+    }
+
+    .fps-control input[type=range] {
+      width: 70px;
+      accent-color: #555;
+    }
+
+    #fps-val {
+      color: #888;
+      min-width: 16px;
+    }
+
+    /* ===== RADIAL MENU ===== */
+    .radial-wrap {
+      position: relative;
+      width: 600px;
+      height: 600px;
+      margin: 0 auto;
+    }
+
+    #radial { width: 100%; height: 100%; }
+
+    .sector:hover { fill: rgba(255, 255, 255, 0.02); }
+
+    /* ===== MOBILE GRID ===== */
+    .mobile-grid {
+      display: none;
+      width: 100%;
+      padding: 0.5rem 0;
+    }
+
+    .mobile-section { margin-bottom: 1rem; }
+
+    .mobile-group-label {
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .mobile-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
+
+    .mobile-btn {
+      font-size: 12px;
+      font-family: inherit;
+      padding: 5px 10px;
+      border-radius: 4px;
+      border: 1px solid #222;
+      background: #111;
+      color: #999;
+      cursor: pointer;
+    }
+
+    .mobile-btn:hover, .mobile-btn.active {
+      background: #1a1a2e;
+      color: #e0e0e0;
+      border-color: #444;
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem;
+      font-size: 11px;
+      color: #333;
+    }
+
+    footer a { color: #555; text-decoration: none; }
+    footer a:hover { color: #888; }
+
+    @media (max-width: 640px) {
+      .radial-wrap { display: none; }
+      .mobile-grid { display: block; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="../index.html">&larr; Braille Lab</a>
+  <h1>Emotions</h1>
+</header>
+
+<div class="main">
+
+  <!-- Mock Terminal -->
+  <div class="terminal">
+    <div class="term-bar">
+      <span class="term-title">emotions@braillelab</span>
+    </div>
+    <div class="term-body">
+      <div class="term-prompt">
+        <span class="user">emotions</span><span class="at">@</span><span class="host">braillelab</span> <span class="path">~</span><span class="dollar">$</span> <span id="term-cmd">show neutral</span>
+      </div>
+      <div class="term-output">
+        <span id="term-face"></span>
+        <span id="term-braille" style="font-size:11px;color:#555;"></span>
+      </div>
+      <div class="term-line term-prompt">
+        <span class="dollar">$</span> <span id="term-cursor" style="color:#555;">_</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button class="ctrl-btn" id="play-seq" title="Cycle through emotions in wheel order">Play sequence</button>
+    <button class="ctrl-btn" id="play-rand" title="Cycle through emotions randomly">Play random</button>
+    <button class="ctrl-btn" id="play-stop" style="display:none;">Stop</button>
+    <div class="fps-control">
+      <span>FPS</span>
+      <input type="range" id="fps-slider" min="1" max="24" value="2">
+      <span id="fps-val">2</span>
+    </div>
+    <button class="ctrl-btn" id="copy-braille">Copy braille</button>
+    <button class="ctrl-btn" id="copy-json">Copy JSON</button>
+    <button class="ctrl-btn" id="open-dab">Open in DAB</button>
+  </div>
+
+  <!-- Radial Menu -->
+  <div class="radial-wrap">
+    <svg id="radial" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+
+  <div class="mobile-grid" id="mobile-grid"></div>
+</div>
+
+<footer>
+  <a href="../index.html">Braille Lab</a> — Emotions
+</footer>
+
+<script src="emotions.js"></script>
+</body>
+</html>
