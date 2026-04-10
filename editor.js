@@ -271,8 +271,24 @@
     });
   }
 
+  // ===== FILE PERSISTENCE =====
+  let fileSaveFn = null;
+
+  async function saveToFile(file, content) {
+    try {
+      const resp = await fetch('/api/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file, content }),
+      });
+      return resp.ok;
+    } catch (e) {
+      return false;
+    }
+  }
+
   // ===== ACTIONS =====
-  function save() {
+  async function save() {
     stopPlay();
     const data = {
       cellCols: st.cellCols,
@@ -281,6 +297,15 @@
       loop: st.loop,
       frames: st.frames.map(cloneGrid),
     };
+    if (fileSaveFn) {
+      const ok = await fileSaveFn(data);
+      if (!ok) {
+        const btn = overlay.querySelector('#be-save');
+        btn.textContent = 'Save failed — run serve.py';
+        setTimeout(() => btn.textContent = 'Save & Close', 2000);
+        return;
+      }
+    }
     if (onSave) onSave(data);
     close();
   }
@@ -303,7 +328,9 @@
 
   // ===== PUBLIC API =====
   window.brailleEditor = {
-    open(animData, callback) {
+    saveToFile,
+
+    open(animData, callback, persistFn) {
       buildUI();
       st = {
         cellCols: animData.cellCols || 4,
@@ -315,6 +342,7 @@
         mode: 'draw',
       };
       onSave = callback || null;
+      fileSaveFn = persistFn || null;
       undoStack = [];
 
       overlay.style.display = 'flex';

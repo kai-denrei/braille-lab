@@ -381,6 +381,11 @@ if (window.brailleEditor && brailleEditor.isAvailable()) {
       animFrame = 0;
       renderFrame();
       startFrameAnimation();
+    }, async (updatedAnim) => {
+      // Persist: update the emotion in the array and write emotions.json
+      selected.animation = updatedAnim;
+      const json = JSON.stringify(emotions, null, 2);
+      return brailleEditor.saveToFile('emotions/emotions.json', json);
     });
   });
 }
