@@ -39,6 +39,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
 
 
+class ReusableHTTPServer(http.server.HTTPServer):
+    allow_reuse_address = True
+
 if __name__ == '__main__':
     print(f"Braille Lab dev server on http://localhost:{PORT}")
-    http.server.HTTPServer(('', PORT), Handler).serve_forever()
+    ReusableHTTPServer(('', PORT), Handler).serve_forever()
