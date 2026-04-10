@@ -297,6 +297,8 @@
       loop: st.loop,
       frames: st.frames.map(cloneGrid),
     };
+    // Update in-memory first so persist fn sees current state
+    if (onSave) onSave(data);
     if (fileSaveFn) {
       const ok = await fileSaveFn(data);
       if (!ok) {
@@ -306,7 +308,6 @@
         return;
       }
     }
-    if (onSave) onSave(data);
     close();
   }
 
