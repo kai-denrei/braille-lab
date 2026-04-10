@@ -30,9 +30,9 @@
     .hero-braille {
       font-size: 48px;
       line-height: 1;
-      color: #f472b6;
       margin: 1rem 0;
       letter-spacing: 0.05em;
+      transition: color 0.3s;
     }
 
     header p {
@@ -136,6 +136,18 @@
       font-size: 11px;
       color: #333;
     }
+
+    .hero-mobile { display: none; margin: 0; }
+
+    @media (max-width: 640px) {
+      header { padding: 2rem 1rem 1rem; }
+      #hero { display: none; }
+      .hero-mobile { display: block; font-size: 28px; }
+      .grid { grid-template-columns: 1fr; padding: 0 1rem; }
+      .card-preview { font-size: 22px; }
+      .preview-emotion { font-size: 32px !important; }
+      footer { padding: 2rem 1rem; }
+    }
   </style>
 </head>
 <body>
@@ -143,6 +155,8 @@
 <header>
   <h1>Braille Lab</h1>
   <div class="hero-braille" id="hero"></div>
+  <div class="hero-braille hero-mobile" id="hero-m1"></div>
+  <div class="hero-braille hero-mobile" id="hero-m2"></div>
   <p>Minimalist visualizations using Unicode Braille characters</p>
 </header>
 
@@ -381,7 +395,51 @@ function showEmotionFace() {
 showEmotionFace();
 setInterval(showEmotionFace, 1500);
 
-animate(document.getElementById('hero'), genWrite('BRAILLE LAB'), 40);
+// Hero with rotating palettes
+const heroFrames = genWrite('BRAILLE LAB');
+const heroFramesM1 = genWrite('BRAILLE');
+const heroFramesM2 = genWrite('LAB');
+const palettes = [
+  (i, len) => {
+    const t = i / (len - 1);
+    const v = Math.round(255 - Math.sin(t * Math.PI) * 140);
+    return `rgb(${v},${v},${v})`;
+  },
+  (i, len) => {
+    const colors = ['#ff2d95', '#ff3da0', '#e040fb', '#b040ff', '#7c4dff', '#448aff', '#00e5ff', '#00ffcc', '#76ff03', '#eeff41', '#ffea00', '#ff9100', '#ff3d00', '#ff2d95'];
+    return colors[Math.floor(i / len * colors.length)];
+  },
+  (i, len) => {
+    const colors = ['#c4b5d4', '#b8c9e0', '#a8d8c8', '#d4c9a8', '#e0b8b8', '#c9b8d8', '#b8d8d4', '#d8c4b8', '#c8b8d0', '#b8d0c8', '#d0c8b8', '#c8b8c0'];
+    return colors[Math.floor(i / len * colors.length)];
+  },
+];
+let paletteIdx = 0;
+const heroEl = document.getElementById('hero');
+const heroM1 = document.getElementById('hero-m1');
+const heroM2 = document.getElementById('hero-m2');
+let heroFrame = 0;
+
+function colorize(text, palette) {
+  const chars = [...text];
+  return chars.map((ch, i) =>
+    `<span style="color:${palette(i, chars.length)}">${ch}</span>`
+  ).join('');
+}
+
+function renderHero() {
+  const palette = palettes[paletteIdx];
+  heroEl.innerHTML = colorize(heroFrames[heroFrame], palette);
+  heroM1.innerHTML = colorize(heroFramesM1[Math.min(heroFrame, heroFramesM1.length - 1)], palette);
+  heroM2.innerHTML = colorize(heroFramesM2[Math.min(heroFrame, heroFramesM2.length - 1)], palette);
+  heroFrame++;
+  if (heroFrame >= heroFrames.length) {
+    heroFrame = 0;
+    paletteIdx = (paletteIdx + 1) % palettes.length;
+  }
+}
+renderHero();
+setInterval(renderHero, 40);
 animate(document.getElementById('p-pendulum'), genPendulum(8, 1), 12);
 animate(document.getElementById('p-dab'), dabFrames, 250);
 </script>

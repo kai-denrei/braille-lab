@@ -17,28 +17,6 @@
       align-items: center;
     }
 
-    header {
-      padding: 2rem 1rem 0.5rem;
-      text-align: center;
-    }
-
-    header a {
-      font-size: 11px;
-      color: #555;
-      text-decoration: none;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-    }
-
-    header a:hover { color: #888; }
-
-    h1 {
-      font-size: 13px;
-      font-weight: 400;
-      color: #666;
-      margin-top: 0.5rem;
-      letter-spacing: 0.15em;
-    }
 
     .main {
       display: flex;
@@ -223,15 +201,18 @@
     @media (max-width: 640px) {
       .radial-wrap { display: none; }
       .mobile-grid { display: block; }
+      .mobile-btn { padding: 8px 14px; }
+      .terminal { max-width: 100%; }
+      .controls { gap: 6px; }
+      .ctrl-btn { padding: 6px 10px; }
     }
   </style>
 </head>
 <body>
 
-<header>
-  <a href="../index.html">&larr; Braille Lab</a>
-  <h1>Emotions</h1>
-</header>
+<div style="padding:12px 16px;">
+  <a href="../index.html" style="font-size:10px;color:#444;text-decoration:none;letter-spacing:0.15em;text-transform:uppercase;">&larr; lab</a>
+</div>
 
 <div class="main">
 
@@ -261,8 +242,8 @@
     <button class="ctrl-btn" id="play-stop" style="display:none;">Stop</button>
     <div class="fps-control">
       <span>FPS</span>
-      <input type="range" id="fps-slider" min="1" max="24" value="2">
-      <span id="fps-val">2</span>
+      <input type="range" id="fps-slider" min="1" max="24" value="1">
+      <span id="fps-val">1</span>
     </div>
     <button class="ctrl-btn" id="copy-braille">Copy braille</button>
     <button class="ctrl-btn" id="copy-json">Copy JSON</button>

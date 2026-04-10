@@ -46,7 +46,7 @@ let emotions = [];
 let selected = null;
 let animTimer = null;
 let animFrame = 0;
-let currentFps = 2;
+let currentFps = 1;
 
 // ===== INIT =====
 async function init() {
@@ -376,5 +376,7 @@ setInterval(() => {
 async function start() {
   await init();
   buildWheelOrder();
+  // Autoplay sequence on load
+  startPlay('seq');
 }
 start();
