@@ -210,8 +210,9 @@
 </head>
 <body>
 
-<div style="padding:12px 16px;">
-  <a href="../index.html" style="font-size:10px;color:#444;text-decoration:none;letter-spacing:0.15em;text-transform:uppercase;">&larr; lab</a>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;font-size:11px;letter-spacing:0.1em;">
+  <a href="../index.html" style="color:#555;text-decoration:none;">&larr; LAB</a>
+  <span style="color:#444;cursor:pointer;" onclick="navigator.clipboard.writeText(location.href);this.textContent='[copied!]';setTimeout(()=>this.textContent='[deep link]',1200)">[deep link]</span>
 </div>
 
 <div class="main">
