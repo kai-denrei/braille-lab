@@ -54,6 +54,30 @@ function gridToAscii(grid) {
   return grid.map(row => row.map(v => v ? '##' : '..').join('')).join('\n');
 }
 
+// ===== BRAILLE TEXT DECODE (English UEB Grade 1, 6-dot only) =====
+const BRAILLE_TO_CHAR = {
+  0x01:'a',0x03:'b',0x09:'c',0x19:'d',0x11:'e',0x0B:'f',0x1B:'g',0x13:'h',0x0A:'i',0x1A:'j',
+  0x05:'k',0x07:'l',0x0D:'m',0x1D:'n',0x15:'o',0x0F:'p',0x1F:'q',0x17:'r',0x0E:'s',0x1E:'t',
+  0x25:'u',0x27:'v',0x3A:'w',0x2D:'x',0x3D:'y',0x35:'z',
+  0x00:' ',
+  0x02:'1',0x06:'2',0x12:'3',0x32:'4',0x22:'5',0x16:'6',0x36:'7',0x26:'8',0x14:'9',0x34:'0',
+  0x04:',',0x24:'-',0x10:';',0x30:':',0x20:'!',0x28:'?',0x2C:'.',
+};
+
+function gridToText(grid, cellCols, cellRows) {
+  const lines = gridToBraille(grid, cellCols, cellRows);
+  const decoded = lines.map(line => [...line].map(ch => {
+    const code = ch.codePointAt(0) - 0x2800;
+    // Only decode 6-dot patterns (bits 0-5), skip if d7/d8 set
+    if (code & 0xC0) return null;
+    const c = BRAILLE_TO_CHAR[code];
+    return c !== undefined ? c : null;
+  }));
+  // If nothing decoded, return empty
+  if (decoded.every(row => row.every(c => c === null))) return '';
+  return decoded.map(row => row.map(c => c !== null ? c : '?').join('')).join('\n');
+}
+
 function gridToTermdot(grid) {
   return '"' + grid.map(row => row.map(v => v ? '*' : '.').join('')).join('\\n') + '"';
 }
@@ -400,6 +424,11 @@ function renderOutputs() {
   document.getElementById('out-braille').textContent = braille.join('\n');
   document.getElementById('out-unicode').textContent = gridToUnicode(grid, state.cellCols, state.cellRows);
   document.getElementById('out-ascii').textContent = gridToAscii(grid);
+  const text = gridToText(grid, state.cellCols, state.cellRows);
+  const textEl = document.getElementById('out-text');
+  const textSection = textEl.closest('.output-section');
+  if (text) { textEl.textContent = text; textSection.style.display = ''; }
+  else { textSection.style.display = 'none'; }
   document.getElementById('out-termdot').textContent = gridToTermdot(grid);
   document.getElementById('out-js').textContent = gridToJs(grid, state.cellCols, state.cellRows);
   document.getElementById('out-animation').textContent = exportAnimation(state.frames, state.cellCols, state.cellRows, state.animFormat);
