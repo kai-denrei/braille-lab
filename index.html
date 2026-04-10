@@ -210,6 +210,22 @@
     </div>
   </div>
 
+  <div class="card">
+    <div class="card-preview">
+      <span class="preview-loader" id="p-loader" style="font-size:24px;color:#e0e0e0;"></span>
+    </div>
+    <div class="card-body">
+      <div class="card-title">Loaders</div>
+      <div class="card-desc">18 procedural braille loading spinners — orbit, helix, rain, pulse, snake, cascade, and more. Ported from cli-loaders.</div>
+      <div class="card-tags">
+        <span class="tag">spinners</span>
+        <span class="tag">procedural</span>
+        <span class="tag">catalog</span>
+      </div>
+      <a class="card-link" href="loaders/index.html">Open loaders &rarr;</a>
+    </div>
+  </div>
+
 </div>
 
 <footer>braille lab — exploring the 256 states of ⠀ through ⣿ · <a href="about.html" style="color:#555;text-decoration:none;">about</a></footer>
@@ -442,6 +458,10 @@ renderHero();
 setInterval(renderHero, 40);
 animate(document.getElementById('p-pendulum'), genPendulum(8, 1), 12);
 animate(document.getElementById('p-dab'), dabFrames, 250);
+
+// Loader preview — DNA helix
+const dnaFrames = ['\u280B\u2809\u2819\u281A','\u2809\u2819\u281A\u2812','\u2819\u281A\u2812\u2802','\u281A\u2812\u2802\u2802','\u2812\u2802\u2802\u2812','\u2802\u2802\u2812\u2832','\u2802\u2812\u2832\u2834','\u2812\u2832\u2834\u2824','\u2832\u2834\u2824\u2804','\u2834\u2824\u2804\u280B','\u2824\u2804\u280B\u2809','\u2804\u280B\u2809\u2819'];
+animate(document.getElementById('p-loader'), dnaFrames, 80);
 </script>
 
 </body>
