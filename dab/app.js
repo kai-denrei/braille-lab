@@ -66,16 +66,18 @@ const BRAILLE_TO_CHAR = {
 
 function gridToText(grid, cellCols, cellRows) {
   const lines = gridToBraille(grid, cellCols, cellRows);
+  let hasAny = false;
   const decoded = lines.map(line => [...line].map(ch => {
     const code = ch.codePointAt(0) - 0x2800;
-    // Only decode 6-dot patterns (bits 0-5), skip if d7/d8 set
-    if (code & 0xC0) return null;
+    if (code === 0) return ' ';
+    // Only decode 6-dot patterns (bits 0-5)
+    if (code & 0xC0) return ' ';
     const c = BRAILLE_TO_CHAR[code];
-    return c !== undefined ? c : null;
-  }));
-  // If nothing decoded, return empty
-  if (decoded.every(row => row.every(c => c === null))) return '';
-  return decoded.map(row => row.map(c => c !== null ? c : '?').join('')).join('\n');
+    if (c !== undefined) { hasAny = true; return c; }
+    return ' ';
+  }).join(''));
+  if (!hasAny) return '';
+  return decoded.join('\n');
 }
 
 function gridToTermdot(grid) {
