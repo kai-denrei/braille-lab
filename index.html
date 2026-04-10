@@ -123,6 +123,18 @@
 
     .card-link:hover { text-decoration: underline; }
 
+    .deep-link {
+      display: inline-block;
+      margin-top: 0.75rem;
+      margin-left: 8px;
+      font-size: 11px;
+      color: #444;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .deep-link:hover { color: #888; }
+
     .preview-pendulum { color: #facc15; }
     .preview-compress { color: #f87171; }
     .preview-sort { color: #60a5fa; }
@@ -175,6 +187,7 @@
         <span class="tag">standalone</span>
       </div>
       <a class="card-link" href="spinners.html">Open spinners &rarr;</a>
+      <span class="deep-link" data-path="spinners.html">[deep link]</span>
     </div>
   </div>
 
@@ -191,6 +204,7 @@
         <span class="tag">export</span>
       </div>
       <a class="card-link" href="dab/index.html">Open editor &rarr;</a>
+      <span class="deep-link" data-path="dab/index.html">[deep link]</span>
     </div>
   </div>
 
@@ -207,6 +221,7 @@
         <span class="tag">library</span>
       </div>
       <a class="card-link" href="emotions/index.html">Open emotions &rarr;</a>
+      <span class="deep-link" data-path="emotions/index.html">[deep link]</span>
     </div>
   </div>
 
@@ -223,6 +238,7 @@
         <span class="tag">catalog</span>
       </div>
       <a class="card-link" href="loaders/index.html">Open loaders &rarr;</a>
+      <span class="deep-link" data-path="loaders/index.html">[deep link]</span>
     </div>
   </div>
 
@@ -462,6 +478,16 @@ animate(document.getElementById('p-dab'), dabFrames, 250);
 // Loader preview — DNA helix
 const dnaFrames = ['\u280B\u2809\u2819\u281A','\u2809\u2819\u281A\u2812','\u2819\u281A\u2812\u2802','\u281A\u2812\u2802\u2802','\u2812\u2802\u2802\u2812','\u2802\u2802\u2812\u2832','\u2802\u2812\u2832\u2834','\u2812\u2832\u2834\u2824','\u2832\u2834\u2824\u2804','\u2834\u2824\u2804\u280B','\u2824\u2804\u280B\u2809','\u2804\u280B\u2809\u2819'];
 animate(document.getElementById('p-loader'), dnaFrames, 80);
+
+// Deep links
+document.querySelectorAll('.deep-link').forEach(el => {
+  el.addEventListener('click', () => {
+    const url = new URL(el.dataset.path, location.href).href;
+    navigator.clipboard.writeText(url);
+    el.textContent = '[copied!]';
+    setTimeout(() => el.textContent = '[deep link]', 1200);
+  });
+});
 </script>
 
 </body>
