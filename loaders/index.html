@@ -143,6 +143,7 @@
 
 <div class="grid" id="grid"></div>
 
+<script src="../editor.js"></script>
 <script>
 // ===== BRAILLE GRID UTILS =====
 const BRAILLE_DOT_MAP = [[1,8],[2,16],[4,32],[64,128]];
@@ -372,6 +373,58 @@ document.getElementById('copy-braille').addEventListener('click', () => {
   btn.textContent = 'Copied';
   setTimeout(() => btn.textContent = 'Copy current', 1000);
 });
+
+// Editor (localhost only)
+if (window.brailleEditor && brailleEditor.isAvailable()) {
+  const editBtn = document.createElement('button');
+  editBtn.className = 'btn';
+  editBtn.id = 'edit-loader';
+  editBtn.textContent = 'Edit';
+  document.querySelector('.focus-actions').appendChild(editBtn);
+
+  // Decode braille string frames back to grids
+  function brailleToGrids(frames) {
+    return frames.map(frame => {
+      const chars = [...frame];
+      const cols = chars.length * 2;
+      const grid = Array.from({length: 4}, () => Array(cols).fill(0));
+      chars.forEach((ch, ci) => {
+        const bits = ch.codePointAt(0) - 0x2800;
+        for (let r = 0; r < 4; r++)
+          for (let d = 0; d < 2; d++)
+            if (bits & BRAILLE_DOT_MAP[r][d]) grid[r][ci * 2 + d] = 1;
+      });
+      return grid;
+    });
+  }
+
+  editBtn.addEventListener('click', () => {
+    const def = loaders[focusKey];
+    const grids = brailleToGrids(def.frames);
+    const cellCols = Math.ceil(grids[0][0].length / 2);
+    brailleEditor.open({ cellCols, cellRows: 1, fps: Math.round(1000 / def.interval), loop: true, frames: grids }, updated => {
+      // Update the loader's frames in memory
+      loaders[focusKey] = {
+        frames: updated.frames.map(g => {
+          let result = '';
+          const charCount = Math.ceil(g[0].length / 2);
+          for (let c = 0; c < charCount; c++) {
+            let code = 0x2800;
+            for (let r = 0; r < 4 && r < g.length; r++)
+              for (let d = 0; d < 2; d++) {
+                const col = c * 2 + d;
+                if (col < g[0].length && g[r][col]) code |= BRAILLE_DOT_MAP[r][d];
+              }
+            result += String.fromCodePoint(code);
+          }
+          return result;
+        }),
+        interval: Math.round(1000 / updated.fps),
+      };
+      selectLoader(focusKey);
+    });
+  });
+}
 
 selectLoader('braille');
 </script>

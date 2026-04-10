@@ -366,6 +366,25 @@ document.getElementById('open-dab').addEventListener('click', () => {
   window.open('../dab/index.html', '_blank');
 });
 
+// ===== EDITOR (localhost only) =====
+if (window.brailleEditor && brailleEditor.isAvailable()) {
+  const editBtn = document.createElement('button');
+  editBtn.className = 'ctrl-btn';
+  editBtn.id = 'edit-btn';
+  editBtn.textContent = 'Edit';
+  document.querySelector('.controls').appendChild(editBtn);
+  editBtn.addEventListener('click', () => {
+    if (!selected) return;
+    stopPlay();
+    brailleEditor.open(selected.animation, updated => {
+      selected.animation = updated;
+      animFrame = 0;
+      renderFrame();
+      startFrameAnimation();
+    });
+  });
+}
+
 // ===== CURSOR BLINK =====
 setInterval(() => {
   const c = document.getElementById('term-cursor');
