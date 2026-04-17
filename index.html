@@ -141,6 +141,7 @@
     .preview-write { color: #f472b6; }
     .preview-dab { color: #a78bfa; }
     .preview-emotion { color: #f472b6; font-size: 48px; }
+    .preview-progress { font-size: 34px; letter-spacing: 0.02em; }
 
     footer {
       text-align: center;
@@ -239,6 +240,23 @@
       </div>
       <a class="card-link" href="loaders/index.html">Open loaders &rarr;</a>
       <span class="deep-link" data-path="loaders/index.html">[deep link]</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-preview">
+      <span class="preview-progress" id="p-progress"></span>
+    </div>
+    <div class="card-body">
+      <div class="card-title">Progress</div>
+      <div class="card-desc">A 4-glyph braille progress bar. 37 states via dot-fill shapes and a luminance-crescendo palette — compact enough for a status line.</div>
+      <div class="card-tags">
+        <span class="tag">progress</span>
+        <span class="tag">palette</span>
+        <span class="tag">poc</span>
+      </div>
+      <a class="card-link" href="progress/index.html">Open progress &rarr;</a>
+      <span class="deep-link" data-path="progress/index.html">[deep link]</span>
     </div>
   </div>
 
@@ -478,6 +496,27 @@ animate(document.getElementById('p-dab'), dabFrames, 250);
 // Loader preview — DNA helix
 const dnaFrames = ['\u280B\u2809\u2819\u281A','\u2809\u2819\u281A\u2812','\u2819\u281A\u2812\u2802','\u281A\u2812\u2802\u2802','\u2812\u2802\u2802\u2812','\u2802\u2802\u2812\u2832','\u2802\u2812\u2832\u2834','\u2812\u2832\u2834\u2824','\u2832\u2834\u2824\u2804','\u2834\u2824\u2804\u280B','\u2824\u2804\u280B\u2809','\u2804\u280B\u2809\u2819'];
 animate(document.getElementById('p-loader'), dnaFrames, 80);
+
+// Progress preview — sweep 0→100 through 37 states
+const PROGRESS_SHAPES = ['\u2800','\u2840','\u2844','\u2846','\u2847','\u28C7','\u28E7','\u28F7','\u28FF'];
+const PROGRESS_PAL = { dim:'#2a2620', d:'#8a6a3a', '1':'#c89a55', '2':'#dcb46d', '3':'#efc88a', '4':'#ffdca8' };
+function progressStateAt(n) {
+  const g = ['\u28FF','\u28FF','\u28FF','\u28FF'];
+  const c = ['dim','dim','dim','dim'];
+  if (n > 0) {
+    const b = Math.floor((n - 1) / 9), ib = (n - 1) % 9;
+    for (let i = 0; i < b; i++) c[i] = String(i + 1);
+    if (ib < 8) { g[b] = PROGRESS_SHAPES[ib + 1]; c[b] = 'd'; }
+    else c[b] = String(b + 1);
+  }
+  return g.map((gl, i) => `<span style="color:${PROGRESS_PAL[c[i]]}">${gl}</span>`).join('');
+}
+const progEl = document.getElementById('p-progress');
+let progN = 0;
+setInterval(() => {
+  progEl.innerHTML = progressStateAt(progN);
+  progN = (progN + 1) % 37;
+}, 80);
 
 // Deep links
 document.querySelectorAll('.deep-link').forEach(el => {

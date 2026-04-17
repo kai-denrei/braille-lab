@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress — Braille Lab</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a0a;
+      color: #e0e0e0;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 900px;
+      margin: 0 auto 1.5rem;
+    }
+    .nav a {
+      font-size: 10px;
+      color: #444;
+      text-decoration: none;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+    .nav a:hover { color: #888; }
+    .nav span {
+      font-size: 11px;
+      color: #333;
+      cursor: pointer;
+    }
+    .nav span:hover { color: #888; }
+
+    .card {
+      max-width: 900px;
+      margin: 0 auto 1rem;
+      background: #111;
+      border: 1px solid #1a1a1a;
+      border-radius: 4px;
+      padding: 24px;
+    }
+
+    /* Hero bar */
+    .hero {
+      text-align: center;
+      padding: 40px 20px 32px;
+    }
+    #hero-bar {
+      font-size: 120px;
+      line-height: 1;
+      letter-spacing: 0.02em;
+      user-select: none;
+    }
+    .hero-meta {
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
+      gap: 28px;
+      font-size: 11px;
+      color: #555;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .hero-meta b {
+      color: #ccc;
+      font-weight: normal;
+    }
+
+    /* Inline (status-line) size */
+    .inline-row {
+      margin-top: 28px;
+      padding-top: 24px;
+      border-top: 1px dashed #1c1c1c;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      font-size: 11px;
+      color: #444;
+    }
+    .inline-row .prompt { color: #333; user-select: none; }
+    #inline-bar {
+      font-size: 22px;
+      line-height: 1;
+      letter-spacing: 0.02em;
+    }
+    #inline-pct {
+      color: #888;
+      font-variant-numeric: tabular-nums;
+      min-width: 42px;
+      display: inline-block;
+    }
+    .inline-caption {
+      display: block;
+      width: 100%;
+      text-align: center;
+      font-size: 10px;
+      color: #333;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-top: 10px;
+    }
+
+    /* Controls */
+    .controls { padding: 20px 24px; }
+    .scrubber-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      flex: 1;
+      height: 4px;
+      background: #1e1e1e;
+      border-radius: 2px;
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #c89a55;
+      cursor: pointer;
+      border: 2px solid #1a1a1a;
+    }
+    input[type=range]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #c89a55;
+      cursor: pointer;
+      border: 2px solid #1a1a1a;
+    }
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+      justify-content: center;
+    }
+    .btn {
+      font-size: 11px;
+      font-family: inherit;
+      padding: 6px 14px;
+      border-radius: 3px;
+      border: 1px solid #2a2a2a;
+      background: #151515;
+      color: #999;
+      cursor: pointer;
+      letter-spacing: 0.08em;
+    }
+    .btn:hover { background: #1c1c1c; color: #ddd; }
+    .btn.active { background: #1e1a10; border-color: #5a4a2a; color: #c89a55; }
+
+    /* Table */
+    details {
+      max-width: 900px;
+      margin: 0 auto 1rem;
+      background: #111;
+      border: 1px solid #1a1a1a;
+      border-radius: 4px;
+    }
+    summary {
+      padding: 16px 24px;
+      cursor: pointer;
+      font-size: 11px;
+      color: #888;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      list-style: none;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary:hover { color: #ccc; }
+    summary::before {
+      content: '▸';
+      display: inline-block;
+      margin-right: 10px;
+      transition: transform 0.2s;
+      color: #555;
+    }
+    details[open] summary::before { transform: rotate(90deg); }
+
+    .table {
+      padding: 0 24px 20px;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 50px 1fr 70px 1fr;
+      gap: 16px;
+      align-items: center;
+      padding: 4px 0;
+      font-size: 11px;
+      color: #555;
+      border-top: 1px solid #151515;
+    }
+    .row:first-child { border-top: none; }
+    .row:hover { background: #131313; }
+    .row .n { color: #666; }
+    .row .bar { font-size: 24px; line-height: 1; letter-spacing: 0.02em; }
+    .row .pct { color: #888; text-align: right; }
+    .row .label { color: #444; font-size: 10px; letter-spacing: 0.08em; }
+
+    /* Palette switcher (clickable tone presets) */
+    .palette-switcher {
+      max-width: 900px;
+      margin: 0 auto 1rem;
+      padding: 14px 20px;
+      background: #111;
+      border: 1px solid #1a1a1a;
+      border-radius: 4px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    .palette-switcher .title {
+      font-size: 10px;
+      color: #555;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-right: 6px;
+    }
+    .palette-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 3px;
+      border: 1px solid #222;
+      background: #151515;
+      color: #888;
+      font-family: inherit;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    .palette-btn:hover { border-color: #333; color: #ddd; }
+    .palette-btn.active { border-color: #555; background: #1c1c1c; color: #eee; }
+    .palette-btn .chips {
+      display: inline-flex;
+      gap: 2px;
+    }
+    .palette-btn .chip {
+      width: 8px;
+      height: 12px;
+      border-radius: 1px;
+    }
+
+    /* Palette swatch (visual key — updates with active palette) */
+    .palette-key {
+      max-width: 900px;
+      margin: 0 auto 1rem;
+      padding: 14px 24px;
+      background: #0d0d0d;
+      border: 1px solid #151515;
+      border-radius: 4px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      font-size: 10px;
+      color: #555;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .palette-key span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .swatch {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+
+    @media (max-width: 640px) {
+      #hero-bar { font-size: 72px; }
+      .hero { padding: 28px 10px; }
+      .card, details, .palette-key { padding-left: 14px; padding-right: 14px; }
+      .row { grid-template-columns: 32px 1fr 56px; }
+      .row .label { display: none; }
+      .btn-row { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="nav">
+  <a href="../index.html">&larr; LAB</a>
+  <span onclick="navigator.clipboard.writeText(location.href);this.textContent='[copied!]';setTimeout(()=>this.textContent='[deep link]',1200)">[deep link]</span>
+</div>
+
+<div class="card hero">
+  <div id="hero-bar"></div>
+  <div class="hero-meta">
+    <span>percent <b id="pct-label">0%</b></span>
+    <span>state <b id="state-label">0 / 37</b></span>
+    <span>quarter <b id="q-label">—</b></span>
+  </div>
+  <div class="inline-row">
+    <span class="prompt">$ build</span>
+    <span id="inline-bar"></span>
+    <span id="inline-pct">0%</span>
+  </div>
+  <span class="inline-caption">inline · status-line size</span>
+</div>
+
+<div class="card controls">
+  <div class="scrubber-row">
+    <input type="range" id="scrubber" min="0" max="100" step="0.1" value="0">
+  </div>
+  <div class="btn-row">
+    <button class="btn" id="btn-play">▶ play</button>
+    <button class="btn" id="btn-pause">⏸ pause</button>
+    <button class="btn" id="btn-reset">↺ reset</button>
+    <button class="btn" id="btn-reverse">reverse: off</button>
+  </div>
+</div>
+
+<div class="palette-switcher" id="palette-switcher"></div>
+
+<div class="palette-key" id="palette-key"></div>
+
+<details>
+  <summary>37 states · reference table</summary>
+  <div class="table" id="table"></div>
+</details>
+
+<script>
+// ===== Constants (swappable palette) =====
+const FILL_SHAPES = ['\u2800','\u2840','\u2844','\u2846','\u2847','\u28C7','\u28E7','\u28F7','\u28FF'];
+const PLACEHOLDER = '\u28FF';
+
+const PALETTES = {
+  amber: {
+    dim:      '#2a2620',
+    default:  '#8a6a3a',
+    'done-1': '#c89a55',
+    'done-2': '#dcb46d',
+    'done-3': '#efc88a',
+    'done-4': '#ffdca8',
+  },
+  green: {
+    dim:      '#1e2618',
+    default:  '#4e7a3a',
+    'done-1': '#73b05a',
+    'done-2': '#99cc7a',
+    'done-3': '#b8dd9d',
+    'done-4': '#d8f0c2',
+  },
+  blue: {
+    dim:      '#1a1e2a',
+    default:  '#3a5a8a',
+    'done-1': '#6a95c8',
+    'done-2': '#8db0dc',
+    'done-3': '#b0ccef',
+    'done-4': '#d0e4ff',
+  },
+  magenta: {
+    dim:      '#2a1a26',
+    default:  '#8a3a72',
+    'done-1': '#c855a0',
+    'done-2': '#dc6db6',
+    'done-3': '#ef8aca',
+    'done-4': '#ffa8de',
+  },
+  cyan: {
+    dim:      '#1a2628',
+    default:  '#3a7a82',
+    'done-1': '#5ab0b8',
+    'done-2': '#7accd0',
+    'done-3': '#a0dde0',
+    'done-4': '#c8f0f4',
+  },
+  mono: {
+    dim:      '#2a2a2a',
+    default:  '#6a6a6a',
+    'done-1': '#a0a0a0',
+    'done-2': '#bcbcbc',
+    'done-3': '#d8d8d8',
+    'done-4': '#ffffff',
+  },
+};
+let PALETTE = PALETTES.amber;
+
+const TOTAL_STATES = 37;
+const BOUNDARIES = [0, 9, 18, 27, 36]; // state indices of 0/25/50/75/100
+
+// ===== State machine =====
+// Layout: state 0 = empty (all dim). Then 4 blocks of 9 states each:
+//   block k (k=0..3): states k*9+1..k*9+8 = slot k active, shapes 1..8
+//                     state k*9+9 = boundary (slot k -> done-(k+1), no active)
+function stateAt(n) {
+  const glyphs = [PLACEHOLDER, PLACEHOLDER, PLACEHOLDER, PLACEHOLDER];
+  const colors = ['dim', 'dim', 'dim', 'dim'];
+  if (n <= 0) return { glyphs, colors };
+  const blockState = n - 1;
+  const block = Math.floor(blockState / 9);
+  const inBlock = blockState % 9;
+  for (let i = 0; i < block; i++) colors[i] = `done-${i + 1}`;
+  if (inBlock < 8) {
+    glyphs[block] = FILL_SHAPES[inBlock + 1];
+    colors[block] = 'default';
+  } else {
+    colors[block] = `done-${block + 1}`;
+  }
+  return { glyphs, colors };
+}
+
+function stateIndexForPercent(percent) {
+  const p = Math.max(0, Math.min(100, percent));
+  return Math.floor(p / 100 * (TOTAL_STATES - 1));
+}
+
+function renderBarHTML(state) {
+  return state.glyphs.map((g, i) =>
+    `<span style="color:${PALETTE[state.colors[i]]}">${g}</span>`
+  ).join('');
+}
+
+function quarterLabel(n) {
+  if (n === 0) return 'empty';
+  if (n === 36) return 'peak';
+  if (BOUNDARIES.includes(n)) return `bound ${Math.round(n / 36 * 100)}%`;
+  const block = Math.floor((n - 1) / 9);
+  const shape = ((n - 1) % 9) + 1;
+  return `q${block + 1}·${shape}/8`;
+}
+
+// ===== Page wiring =====
+const hero = document.getElementById('hero-bar');
+const inlineBar = document.getElementById('inline-bar');
+const inlinePct = document.getElementById('inline-pct');
+const pctLabel = document.getElementById('pct-label');
+const stateLabel = document.getElementById('state-label');
+const qLabel = document.getElementById('q-label');
+const scrubber = document.getElementById('scrubber');
+const btnPlay = document.getElementById('btn-play');
+const btnPause = document.getElementById('btn-pause');
+const btnReset = document.getElementById('btn-reset');
+const btnReverse = document.getElementById('btn-reverse');
+const switcherEl = document.getElementById('palette-switcher');
+const keyEl = document.getElementById('palette-key');
+
+let reverse = false;
+let currentPaletteName = 'amber';
+
+function update(percent) {
+  const n = stateIndexForPercent(percent);
+  const state = reverse ? reverseState(stateAt(n)) : stateAt(n);
+  const html = renderBarHTML(state);
+  hero.innerHTML = html;
+  inlineBar.innerHTML = html;
+  const pctText = `${percent.toFixed(percent % 1 === 0 ? 0 : 1)}%`;
+  pctLabel.textContent = pctText;
+  inlinePct.textContent = pctText;
+  stateLabel.textContent = `${n} / ${TOTAL_STATES - 1}`;
+  qLabel.textContent = quarterLabel(n);
+}
+
+function rebuildTable() {
+  tableEl.innerHTML = '';
+  for (let n = 0; n < TOTAL_STATES; n++) {
+    const state = stateAt(n);
+    const pct = (n / (TOTAL_STATES - 1) * 100).toFixed(1);
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML =
+      `<div class="n">${String(n).padStart(2, '0')}</div>` +
+      `<div class="bar">${renderBarHTML(state)}</div>` +
+      `<div class="pct">${pct}%</div>` +
+      `<div class="label">${quarterLabel(n)}</div>`;
+    tableEl.appendChild(row);
+  }
+}
+
+function renderPaletteKey() {
+  const tiers = ['dim', 'default', 'done-1', 'done-2', 'done-3', 'done-4'];
+  keyEl.innerHTML = tiers.map(t =>
+    `<span><span class="swatch" style="background:${PALETTE[t]}"></span>${t}</span>`
+  ).join('');
+}
+
+function setPalette(name) {
+  PALETTE = PALETTES[name];
+  currentPaletteName = name;
+  document.querySelectorAll('.palette-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.name === name);
+  });
+  renderPaletteKey();
+  rebuildTable();
+  update(parseFloat(scrubber.value));
+}
+
+function buildSwitcher() {
+  const title = document.createElement('span');
+  title.className = 'title';
+  title.textContent = 'tone';
+  switcherEl.appendChild(title);
+  for (const name of Object.keys(PALETTES)) {
+    const pal = PALETTES[name];
+    const btn = document.createElement('button');
+    btn.className = 'palette-btn' + (name === currentPaletteName ? ' active' : '');
+    btn.dataset.name = name;
+    btn.innerHTML =
+      `<span class="chips">` +
+        `<span class="chip" style="background:${pal.dim}"></span>` +
+        `<span class="chip" style="background:${pal.default}"></span>` +
+        `<span class="chip" style="background:${pal['done-2']}"></span>` +
+        `<span class="chip" style="background:${pal['done-4']}"></span>` +
+      `</span>` +
+      `<span>${name}</span>`;
+    btn.addEventListener('click', () => setPalette(name));
+    switcherEl.appendChild(btn);
+  }
+}
+
+// Reverse mode: brightest at leading (active) edge.
+// We mirror the bar: swap slot positions and reassign done tiers right-to-left.
+function reverseState(state) {
+  const glyphs = state.glyphs.slice().reverse();
+  const colors = state.colors.slice().reverse().map(c => {
+    if (!c.startsWith('done-')) return c;
+    const n = parseInt(c.split('-')[1], 10);
+    return `done-${5 - n}`;
+  });
+  return { glyphs, colors };
+}
+
+// Animation loop
+let animTimer = null;
+let animPct = 0;
+const STEP_MS = 20;
+
+function play() {
+  if (animTimer) return;
+  btnPlay.classList.add('active');
+  animTimer = setInterval(() => {
+    animPct += 1;
+    if (animPct > 100) animPct = 0;
+    scrubber.value = animPct;
+    update(animPct);
+  }, STEP_MS);
+}
+
+function pause() {
+  if (animTimer) clearInterval(animTimer);
+  animTimer = null;
+  btnPlay.classList.remove('active');
+}
+
+function reset() {
+  pause();
+  animPct = 0;
+  scrubber.value = 0;
+  update(0);
+}
+
+btnPlay.addEventListener('click', play);
+btnPause.addEventListener('click', pause);
+btnReset.addEventListener('click', reset);
+btnReverse.addEventListener('click', () => {
+  reverse = !reverse;
+  btnReverse.textContent = `reverse: ${reverse ? 'on' : 'off'}`;
+  btnReverse.classList.toggle('active', reverse);
+  update(parseFloat(scrubber.value));
+});
+
+scrubber.addEventListener('input', () => {
+  pause();
+  animPct = parseFloat(scrubber.value);
+  update(animPct);
+});
+
+// ===== Initial render + autoplay =====
+const tableEl = document.getElementById('table');
+buildSwitcher();
+renderPaletteKey();
+rebuildTable();
+update(0);
+play();
+</script>
+
+</body>
+</html>
