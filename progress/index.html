@@ -60,15 +60,24 @@
       margin-top: 20px;
       display: flex;
       justify-content: center;
-      gap: 28px;
+      align-items: flex-start;
+      gap: 36px;
       font-size: 11px;
       color: #555;
       letter-spacing: 0.12em;
       text-transform: uppercase;
     }
-    .hero-meta b {
+    .meta-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      min-width: 100px;
+    }
+    .meta-label { color: #555; }
+    .meta-value {
       color: #ccc;
-      font-weight: normal;
+      font-variant-numeric: tabular-nums;
     }
 
     /* Inline (status-line) size */
@@ -304,9 +313,18 @@
 <div class="card hero">
   <div id="hero-bar"></div>
   <div class="hero-meta">
-    <span>percent <b id="pct-label">0%</b></span>
-    <span>state <b id="state-label">0 / 37</b></span>
-    <span>quarter <b id="q-label">—</b></span>
+    <div class="meta-cell">
+      <span class="meta-label">percent</span>
+      <span class="meta-value" id="pct-label">0%</span>
+    </div>
+    <div class="meta-cell">
+      <span class="meta-label">state</span>
+      <span class="meta-value" id="state-label">0 / 36</span>
+    </div>
+    <div class="meta-cell">
+      <span class="meta-label">quarter</span>
+      <span class="meta-value" id="q-label">empty</span>
+    </div>
   </div>
   <div class="inline-row">
     <span class="prompt">$ build</span>
