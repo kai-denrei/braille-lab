@@ -66,6 +66,8 @@
     <div class="seg" id="seg-prim">
       <button data-prim="cube" class="active">cube</button>
       <button data-prim="pyramid">pyramid</button>
+      <button data-prim="octa">octa</button>
+      <button data-prim="dodeca">dodeca</button>
     </div>
   </div>
   <div class="control">
@@ -169,6 +171,16 @@ function makeConvexWarp(planes) {
     return [d[0] * t, d[1] * t, d[2] * t];
   };
 }
+/** Edges of a regular solid: all vertex pairs at (near) the minimum distance. */
+function uniformEdges(verts) {
+  let dmin = Infinity;
+  for (let i = 0; i < verts.length; i++) for (let j = i + 1; j < verts.length; j++)
+    dmin = Math.min(dmin, Math.hypot(verts[i][0] - verts[j][0], verts[i][1] - verts[j][1], verts[i][2] - verts[j][2]));
+  const thr = dmin * 1.08, edges = [];
+  for (let i = 0; i < verts.length; i++) for (let j = i + 1; j < verts.length; j++)
+    if (Math.hypot(verts[i][0] - verts[j][0], verts[i][1] - verts[j][1], verts[i][2] - verts[j][2]) <= thr) edges.push([verts[i], verts[j]]);
+  return edges;
+}
 /** Sample a planar polygon face (fan-triangulated) on a barycentric grid. */
 function sampleFace(verts, idx, density) {
   const out = [], v0 = verts[idx[0]];
@@ -252,9 +264,36 @@ const PYR_PTS = (() => {
   return p;
 })();
 
+// octahedron — verts at ±axis; 8 triangular faces (one vertex per axis pair)
+const OCTA_VERTS = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+const OCTA_FACES = [[0, 2, 4], [0, 2, 5], [0, 3, 4], [0, 3, 5], [1, 2, 4], [1, 2, 5], [1, 3, 4], [1, 3, 5]];
+const OCTA_WARP = makeConvexWarp(facePlanes(OCTA_VERTS, OCTA_FACES));
+const OCTA_GHOST = uniformEdges(OCTA_VERTS);
+const OCTA_PTS = (() => { let p = []; for (const f of OCTA_FACES) p = p.concat(sampleFace(OCTA_VERTS, f, 7)); return p; })();
+
+// dodecahedron — 12 face planes point along the icosahedron vertex directions;
+// the 20 vertices (golden-ratio coords) drive the ghost wireframe.
+const PHI = 1.6180339887, INV = 1 / PHI;
+const ICOSA_DIRS = [
+  [0, 1, PHI], [0, 1, -PHI], [0, -1, PHI], [0, -1, -PHI],
+  [1, PHI, 0], [1, -PHI, 0], [-1, PHI, 0], [-1, -PHI, 0],
+  [PHI, 0, 1], [PHI, 0, -1], [-PHI, 0, 1], [-PHI, 0, -1]
+];
+const DODECA_WARP = makeConvexWarp(ICOSA_DIRS.map((d) => ({ n: normV(d), d: 1 })));
+const DODECA_VDIRS = [
+  [1, 1, 1], [1, 1, -1], [1, -1, 1], [1, -1, -1], [-1, 1, 1], [-1, 1, -1], [-1, -1, 1], [-1, -1, -1],
+  [0, INV, PHI], [0, INV, -PHI], [0, -INV, PHI], [0, -INV, -PHI],
+  [INV, PHI, 0], [INV, -PHI, 0], [-INV, PHI, 0], [-INV, -PHI, 0],
+  [PHI, 0, INV], [PHI, 0, -INV], [-PHI, 0, INV], [-PHI, 0, -INV]
+].map((v) => DODECA_WARP(v));
+const DODECA_GHOST = uniformEdges(DODECA_VDIRS);
+const DODECA_PTS = Array.from({ length: 360 }, (_, i) => DODECA_WARP(fibDir(i, 360)));
+
 const PRIMS = {
   cube: { key: 'cube', label: 'Cube', warp: cubeWarp, solvePts: cubePoints(7), ghost: CUBE_GHOST, Rf: 1 },
-  pyramid: { key: 'pyramid', label: 'Pyramid', warp: PYR_WARP, solvePts: PYR_PTS, ghost: PYR_GHOST, Rf: 1.25 }
+  pyramid: { key: 'pyramid', label: 'Pyramid', warp: PYR_WARP, solvePts: PYR_PTS, ghost: PYR_GHOST, Rf: 1.25 },
+  octa: { key: 'octa', label: 'Octahedron', warp: OCTA_WARP, solvePts: OCTA_PTS, ghost: OCTA_GHOST, Rf: 1.7 },
+  dodeca: { key: 'dodeca', label: 'Dodecahedron', warp: DODECA_WARP, solvePts: DODECA_PTS, ghost: DODECA_GHOST, Rf: 1.35 }
 };
 
 // ---- morph (Thinking Orbs engine) — primitive-agnostic 2D outline ----------
