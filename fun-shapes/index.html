@@ -157,10 +157,11 @@ function ghostFeatures(t) {
 }
 // double spiral — two clean intertwined helices, no rungs
 function dblSpiralPts() { const pts = [], N = 120, turns = 3.2, rad = 0.5, H = 1.9; for (let i = 0; i < N; i++) { const s = i / (N - 1), th = s * turns * 2 * Math.PI, y = (s - 0.5) * H; for (const ph of [0, Math.PI]) { const c = [rad * Math.cos(th + ph), y, rad * Math.sin(th + ph)]; pts.push(c, [c[0] * 1.07, y, c[2] * 1.07]); } } return fitUnit(pts); }
-// DNA double helix — two tube backbones (swept, antiparallel) + base-pair rungs
+// DNA double helix — a gentle, stretched twist: two thin swept-tube backbones
+// (antiparallel) joined by prominent base-pair "sticks" at regular intervals.
 function dnaPts() {
-  const pts = [], N = 150, turns = 2.6, R = 0.42, H = 1.95, tubeR = 0.08, M = 5, dth = turns * 2 * Math.PI / (N - 1), dy = H / (N - 1);
-  const strand = (phase) => {
+  const pts = [], N = 180, turns = 2.0, R = 0.42, H = 2.25, tubeR = 0.05, M = 5, dth = turns * 2 * Math.PI / (N - 1), dy = H / (N - 1);
+  const backbone = (phase) => {
     for (let i = 0; i < N; i++) {
       const s = i / (N - 1), th = s * turns * 2 * Math.PI + phase, y = (s - 0.5) * H, C = [R * Math.cos(th), y, R * Math.sin(th)];
       const T = normV([-R * Math.sin(th) * dth, dy, R * Math.cos(th) * dth]);
@@ -169,9 +170,13 @@ function dnaPts() {
       for (let m = 0; m < M; m++) { const a = m / M * 2 * Math.PI, cs = Math.cos(a), sn = Math.sin(a); pts.push([C[0] + tubeR * (cs * n1[0] + sn * n2[0]), C[1] + tubeR * (cs * n1[1] + sn * n2[1]), C[2] + tubeR * (cs * n1[2] + sn * n2[2])]); }
     }
   };
-  strand(0); strand(Math.PI);
-  const RN = 26;
-  for (let j = 0; j < RN; j++) { const s = j / (RN - 1), th = s * turns * 2 * Math.PI, y = (s - 0.5) * H, a = [R * Math.cos(th), y, R * Math.sin(th)], b = [R * Math.cos(th + Math.PI), y, R * Math.sin(th + Math.PI)]; for (let r = 1; r < 7; r++) { const f = r / 7; pts.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f]); } }
+  backbone(0); backbone(Math.PI);
+  // base-pair sticks: flat bars (3 rows thick) spanning the two backbones
+  const RN = 15;
+  for (let j = 0; j < RN; j++) {
+    const s = (j + 0.5) / RN, th = s * turns * 2 * Math.PI, y = (s - 0.5) * H, a = [R * Math.cos(th), y, R * Math.sin(th)], b = [R * Math.cos(th + Math.PI), y, R * Math.sin(th + Math.PI)];
+    for (let r = 0; r <= 9; r++) { const f = r / 9, x = a[0] + (b[0] - a[0]) * f, yy = a[1] + (b[1] - a[1]) * f, z = a[2] + (b[2] - a[2]) * f; pts.push([x, yy, z], [x, yy + 0.028, z], [x, yy - 0.028, z]); }
+  }
   return fitUnit(pts);
 }
 function gearPts() { const pts = [], teeth = 10, Ro = 1, Ri = 0.74, hub = 0.26, Nang = teeth * 10; for (let i = 0; i < Nang; i++) { const a = i / Nang * 2 * Math.PI, top = (Math.floor(a / (2 * Math.PI) * teeth * 2) % 2 === 0) ? Ro : Ri; for (let rr = 0.5; rr <= top + 1e-9; rr += 0.085) pts.push([rr * Math.cos(a), rr * Math.sin(a), 0]); } for (let i = 0; i < 44; i++) { const a = i / 44 * 2 * Math.PI; pts.push([hub * Math.cos(a), hub * Math.sin(a), 0]); } for (let k = 0; k < 5; k++) { const a = k / 5 * 2 * Math.PI; for (let rr = hub; rr < 0.55; rr += 0.075) pts.push([rr * Math.cos(a), rr * Math.sin(a), 0]); } return fitUnit(pts); }
