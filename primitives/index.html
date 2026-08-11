@@ -309,11 +309,15 @@ const ICOSA_PTS = Array.from({ length: 320 }, (_, i) => ICOSA_WARP(fibDir(i, 320
 // (u = longitude around the loop, v = latitude across the half-twisted band).
 const MOB_HALFW = 0.42;
 function mobPoint(u, w) { const rad = 1 + w * Math.cos(u / 2); return [rad * Math.cos(u), rad * Math.sin(u), w * Math.sin(u / 2)]; }
+// Flow mapping: latitude drives the LOOP (so latitude-driven motions — wave,
+// ribbon — travel around the band instead of bunching across its width), and
+// longitude drives the width. The trade is a width seam where longitude wraps.
 function mobiusWarp(v) {
   const d = normV(v);
-  let u = Math.atan2(d[2], d[0]); if (u < 0) u += 2 * Math.PI;
-  const lat = Math.asin(Math.max(-1, Math.min(1, d[1])));
-  return mobPoint(u, (lat / (Math.PI / 2)) * MOB_HALFW);
+  const lat = Math.asin(Math.max(-1, Math.min(1, d[1])));   // [-π/2, π/2]
+  const lon = Math.atan2(d[2], d[0]);                       // (-π, π]
+  const u = (lat / (Math.PI / 2) + 1) * Math.PI;            // pole→pole = once around the loop
+  return mobPoint(u, (lon / Math.PI) * MOB_HALFW);
 }
 const MOB_GHOST = (() => {
   const segs = [], N = 64;
