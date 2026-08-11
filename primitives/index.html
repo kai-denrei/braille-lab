@@ -30,7 +30,7 @@
     .controls { display: flex; gap: 1.5rem; justify-content: center; align-items: center; flex-wrap: wrap; padding: 1.5rem 2rem 0.5rem; }
     .control { display: flex; align-items: center; gap: 0.6rem; }
     .control-label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
-    .seg { display: inline-flex; border: 1px solid var(--seg-border); border-radius: 6px; overflow: hidden; background: var(--seg-bg); }
+    .seg { display: inline-flex; flex-wrap: wrap; justify-content: center; border: 1px solid var(--seg-border); border-radius: 6px; overflow: hidden; background: var(--seg-bg); max-width: 100%; }
     .seg button { appearance: none; background: transparent; border: none; color: var(--muted); font-family: inherit; font-size: 12px; padding: 6px 14px; cursor: pointer; transition: background 0.15s, color 0.15s; }
     .seg button + button { border-left: 1px solid var(--seg-border); }
     .seg button.active { background: var(--seg-active); color: var(--fg); }
@@ -72,6 +72,9 @@
       <button data-prim="icosa">icosa</button>
       <button data-prim="torus">torus</button>
       <button data-prim="mobius">möbius</button>
+      <button data-prim="heart">heart</button>
+      <button data-prim="star">star</button>
+      <button data-prim="butterfly">butterfly</button>
     </div>
   </div>
   <div class="control">
@@ -353,6 +356,54 @@ const TOR_PTS = (() => {
   return pts;
 })();
 
+// ---- fun shapes: warps for non-convex organic bodies -----------------------
+
+// radial warp: surface point is the direction scaled by a per-direction radius.
+function radialWarp(rFn) { return (dir) => { const d = normV(dir); const r = rFn(d); return [d[0] * r, d[1] * r, d[2] * r]; }; }
+// implicit warp: ray-march from the origin to the F(p)=0 surface (F<0 inside).
+function makeImplicitWarp(F) {
+  return (dir) => {
+    const d = normV(dir);
+    let thi = 0.1, f = F(d[0] * thi, d[1] * thi, d[2] * thi), guard = 0;
+    while (f < 0 && thi < 5 && guard < 50) { thi *= 1.35; f = F(d[0] * thi, d[1] * thi, d[2] * thi); guard++; }
+    let tlo = 0, th = thi;
+    for (let i = 0; i < 20; i++) { const tm = (tlo + th) * 0.5; if (F(d[0] * tm, d[1] * tm, d[2] * tm) < 0) tlo = tm; else th = tm; }
+    const t = (tlo + th) * 0.5; return [d[0] * t, d[1] * t, d[2] * t];
+  };
+}
+// ghost/solve helpers that work for ANY warp (organic shapes have no face list)
+function ghostFromWarp(warp, nMer = 8, nSteps = 22) {
+  const segs = [];
+  for (let m = 0; m < nMer; m++) { const lon = (m / nMer) * 2 * Math.PI; let prev = null; for (let s = 0; s <= nSteps; s++) { const lat = -Math.PI / 2 + (s / nSteps) * Math.PI, cl = Math.cos(lat), sl = Math.sin(lat), p = warp([cl * Math.cos(lon), sl, cl * Math.sin(lon)]); if (prev) segs.push([prev, p]); prev = p; } }
+  return segs;
+}
+const latticePts = (warp, n) => Array.from({ length: n }, (_, i) => warp(fibDir(i, n)));
+
+// volumetric heart — the Taubin implicit surface, re-axed so its lobes point +y
+function heartF(x, y, z) { const X = x, Y = z, Z = y, a = X * X + 2.25 * Y * Y + Z * Z - 1; return a * a * a - X * X * Z * Z * Z - 0.1125 * Y * Y * Z * Z * Z; }
+const HEART_WARP = makeImplicitWarp(heartF);
+
+// five-point star — an in-plane star radius, flattened into a thin slab
+function starR(d) {
+  const th = Math.atan2(d[1], d[0]);
+  const star = 0.45 + 0.55 * Math.pow(0.5 + 0.5 * Math.cos(5 * th), 4);
+  const flat = Math.exp(-Math.pow(2.6 * d[2], 2));
+  return star * flat + 0.26;
+}
+const STAR_WARP = radialWarp(starR);
+
+// butterfly — four diagonal wing lobes (upper pair larger) with a body gap at
+// the sides and a notch between upper/lower wings, flattened thin in z
+function butterflyR(d) {
+  const th = Math.atan2(d[1], d[0]);
+  const wings = Math.pow(Math.abs(Math.sin(2 * th)), 0.7);     // lobes at ±45°, ±135°; notches at 0/90/180/270
+  const upper = 0.6 + 0.45 * Math.max(0, Math.sin(th));         // top wings bigger
+  const flat = Math.exp(-Math.pow(2.3 * d[2], 2));
+  const body = 0.32 * Math.exp(-Math.pow(3 * Math.cos(th), 2)); // slim vertical body
+  return (0.16 + 1.0 * wings * upper) * flat + body + 0.1;
+}
+const BFLY_WARP = radialWarp(butterflyR);
+
 const PRIMS = {
   cube: { key: 'cube', label: 'Cube', warp: cubeWarp, solvePts: cubePoints(7), ghost: CUBE_GHOST, Rf: 1 },
   pyramid: { key: 'pyramid', label: 'Pyramid', warp: PYR_WARP, solvePts: PYR_PTS, ghost: PYR_GHOST, Rf: 1.25 },
@@ -361,7 +412,10 @@ const PRIMS = {
   dodeca: { key: 'dodeca', label: 'Dodecahedron', warp: DODECA_WARP, solvePts: DODECA_PTS, ghost: DODECA_GHOST, Rf: 1.35 },
   icosa: { key: 'icosa', label: 'Icosahedron', warp: ICOSA_WARP, solvePts: ICOSA_PTS, ghost: ICOSA_GHOST, Rf: 1.35 },
   torus: { key: 'torus', label: 'Torus', warp: torusWarp, solvePts: TOR_PTS, ghost: TOR_GHOST, Rf: 1.2 },
-  mobius: { key: 'mobius', label: 'Möbius', warp: mobiusWarp, solvePts: MOB_PTS, ghost: MOB_GHOST, Rf: 1.2 }
+  mobius: { key: 'mobius', label: 'Möbius', warp: mobiusWarp, solvePts: MOB_PTS, ghost: MOB_GHOST, Rf: 1.2 },
+  heart: { key: 'heart', label: 'Heart', warp: HEART_WARP, solvePts: latticePts(HEART_WARP, 320), ghost: ghostFromWarp(HEART_WARP), Rf: 0.95 },
+  star: { key: 'star', label: 'Star', warp: STAR_WARP, solvePts: latticePts(STAR_WARP, 320), ghost: ghostFromWarp(STAR_WARP), Rf: 1.3 },
+  butterfly: { key: 'butterfly', label: 'Butterfly', warp: BFLY_WARP, solvePts: latticePts(BFLY_WARP, 340), ghost: ghostFromWarp(BFLY_WARP), Rf: 1.35 }
 };
 
 // ---- morph (Thinking Orbs engine) — primitive-agnostic 2D outline ----------
