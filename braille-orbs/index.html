@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Braille Orbs — Braille Lab</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0e0e1a; --fg: #e0e0e0; --muted: #666; --faint: #444;
+      --card: #13131f; --card-border: #1e1e2e; --card-hover: #333;
+      --preview: #0e0e18; --link: #60a5fa; --orb: #dfe4ee;
+      --seg-bg: #13131f; --seg-border: #1e1e2e; --seg-active: #23233a;
+    }
+    body[data-theme="light"] {
+      --bg: #f2f2ec; --fg: #1c1c1c; --muted: #8a8a82; --faint: #b0b0a8;
+      --card: #ffffff; --card-border: #e2e2d8; --card-hover: #c8c8bc;
+      --preview: #f7f7f1; --link: #2563eb; --orb: #1a1a22;
+      --seg-bg: #ffffff; --seg-border: #e2e2d8; --seg-active: #e8e8de;
+    }
+    body { background: var(--bg); color: var(--fg); font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; min-height: 100vh; transition: background 0.25s, color 0.25s; }
+    header { padding: 3rem 2rem 1rem; text-align: center; }
+    .eyebrow { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+    .eyebrow a { color: var(--muted); text-decoration: none; }
+    .eyebrow a:hover { color: var(--fg); }
+    header h1 { font-size: 26px; font-weight: 500; margin: 0.75rem 0 0.5rem; letter-spacing: 0.02em; }
+    header p { font-size: 13px; color: var(--muted); max-width: 500px; margin: 0 auto; line-height: 1.6; }
+    .attrib { font-size: 12px; color: var(--muted); margin-top: 0.75rem; }
+    .attrib a { color: var(--link); text-decoration: none; }
+    .attrib a:hover { text-decoration: underline; }
+    .controls { display: flex; gap: 1.5rem; justify-content: center; align-items: center; flex-wrap: wrap; padding: 1.5rem 2rem 0.5rem; }
+    .control { display: flex; align-items: center; gap: 0.6rem; }
+    .control-label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+    .seg { display: inline-flex; border: 1px solid var(--seg-border); border-radius: 6px; overflow: hidden; background: var(--seg-bg); }
+    .seg button { appearance: none; background: transparent; border: none; color: var(--muted); font-family: inherit; font-size: 12px; padding: 6px 14px; cursor: pointer; transition: background 0.15s, color 0.15s; }
+    .seg button + button { border-left: 1px solid var(--seg-border); }
+    .seg button.active { background: var(--seg-active); color: var(--fg); }
+    .seg button:hover:not(.active) { color: var(--fg); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1px; max-width: 780px; margin: 1.5rem auto 0; padding: 0 2rem; }
+    .card { background: var(--card); border: 1px solid var(--card-border); border-radius: 8px; overflow: hidden; transition: border-color 0.2s; display: flex; flex-direction: column; }
+    .card:hover { border-color: var(--card-hover); }
+    .card-preview { background: var(--preview); min-height: 170px; display: flex; align-items: center; justify-content: center; transition: background 0.25s; padding: 0.5rem; }
+    .card-preview pre { color: var(--orb); font-size: 11px; line-height: 1.0; letter-spacing: 0; margin: 0; font-family: inherit; white-space: pre; }
+    .card-body { padding: 0.85rem 1rem 0.95rem; text-align: center; }
+    .card-title { font-size: 14px; font-weight: 500; color: var(--fg); }
+    .card-sub { font-size: 11px; color: var(--muted); margin-top: 0.25rem; }
+    .reduced-note { text-align: center; font-size: 11px; color: var(--muted); padding: 1rem 2rem 0; display: none; }
+    body.reduced .reduced-note { display: block; }
+    footer { text-align: center; padding: 3rem 2rem; font-size: 11px; color: var(--faint); line-height: 1.8; }
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--fg); }
+    @media (max-width: 640px) { header { padding: 2rem 1rem 1rem; } .grid { grid-template-columns: 1fr 1fr; padding: 0 1rem; } .card-preview pre { font-size: 9px; } }
+  </style>
+</head>
+<body data-theme="dark">
+
+<header>
+  <div class="eyebrow"><a href="../index.html">&larr; braille lab</a></div>
+  <h1>Braille Orbs</h1>
+  <p>The nine Thinking Orbs, re-rendered in the lab's native medium: each frame is drawn with the halftone engine, then thresholded onto a Unicode braille dot grid. Imperfect, low-res, and alive.</p>
+  <div class="attrib">Motions from <a href="https://github.com/Jakubantalik/thinking-orbs" target="_blank" rel="noopener">Thinking Orbs</a> by Jakub Antalik · MIT</div>
+</header>
+
+<div class="controls">
+  <div class="control">
+    <span class="control-label">Theme</span>
+    <div class="seg" id="seg-theme">
+      <button data-theme="dark" class="active">dark</button>
+      <button data-theme="light">light</button>
+    </div>
+  </div>
+</div>
+
+<div class="reduced-note">Reduced-motion is on — a single static frame is shown.</div>
+
+<div class="grid" id="grid"></div>
+
+<footer>
+  The nine orb motions (MIT © Jakub Antalik) rasterized to Unicode braille for <a href="../index.html">braille lab</a>. Engine ported near-verbatim; braille rasterizer original.
+</footer>
+
+<script>
+// =============================================================================
+// Braille Orbs — the nine Thinking Orbs motions drawn with the halftone engine
+// (MIT © 2026 Jakub Antalik), then downsampled onto a Unicode braille dot grid.
+// Engine (core + nine mode painters + presets) ported near-verbatim; the
+// braille rasterizer is original to Braille Lab.
+// =============================================================================
+
+// ---- core (Thinking Orbs engine) -------------------------------------------
+function lerp(a, b, f) { return a + (b - a) * f; }
+function frac(x) { return x - Math.floor(x); }
+function hashD(a, b) { const h = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return h - Math.floor(h); }
+function vnoise(x, y) {
+  const xi = Math.floor(x), yi = Math.floor(y);
+  let fx = x - xi, fy = y - yi; fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+  const a = hashD(xi, yi), b = hashD(xi + 1, yi), c = hashD(xi, yi + 1), d = hashD(xi + 1, yi + 1);
+  return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
+}
+function fibDir(i, n) { const g = Math.PI * (3 - Math.sqrt(5)), y = 1 - (2 * (i + 0.5)) / n, r = Math.sqrt(1 - y * y), a = i * g; return [r * Math.cos(a), y, r * Math.sin(a)]; }
+function angleDelta(a, b) { return Math.atan2(Math.sin(a - b), Math.cos(a - b)); }
+function makeProj(yaw, tilt, cx, cy, scale) {
+  const st = Math.sin(tilt), ct = Math.cos(tilt), sy = Math.sin(yaw), cyw = Math.cos(yaw);
+  return (x, y, z) => { const x1 = x * cyw + z * sy, z1 = -x * sy + z * cyw; const y1 = y * ct - z1 * st, z2 = y * st + z1 * ct; return [cx + x1 * scale, cy - y1 * scale, z2]; };
+}
+function paint(ctx, dots, dark, rMin = 0.3) {
+  dots.sort((a, b) => a.z - b.z);
+  for (const d of dots) { const alpha = d.a == null ? 1 : d.a; if (alpha < 0.02) continue; const w = Math.min(1, Math.max(0, d.white)), g = Math.round((dark ? 1 - w : w) * 255); ctx.fillStyle = `rgba(${g},${g},${g},${alpha})`; ctx.beginPath(); ctx.arc(d.x, d.y, Math.max(rMin, d.r), 0, Math.PI * 2); ctx.fill(); }
+}
+function paintLines(ctx, lines, dark) {
+  for (const l of lines) { const alpha = l.a == null ? 1 : l.a; if (alpha < 0.02) continue; const w = Math.min(1, Math.max(0, l.white)), g = Math.round((dark ? 1 - w : w) * 255); ctx.strokeStyle = `rgba(${g},${g},${g},${alpha})`; ctx.lineWidth = l.w; ctx.beginPath(); ctx.moveTo(l.x1, l.y1); ctx.lineTo(l.x2, l.y2); ctx.stroke(); }
+}
+const radiusScale = (size, pow) => (size / 300) ** pow;
+
+// ---- mode painters (Thinking Orbs engine) ----------------------------------
+function drawOrbits(ctx, size, t, dark, o) {
+  const cx = size / 2, cy = size / 2, R = (size / 2) * 0.82, pt = makeProj(t * 0.12, 0.3, cx, cy, 1), rs = radiusScale(size, o.rsPow ?? 0.6);
+  const dots = [], orbitN = o.orbitN ?? 12, ghostN = o.ghostN ?? 40, particles = o.particles ?? 3;
+  for (let orb = 0; orb < orbitN; orb++) {
+    const h1 = hashD(orb, 1.7), h2 = hashD(orb, 5.2), h3 = hashD(orb, 8.9), ro = R * (0.45 + 0.52 * h1), th = h1 * 2 * Math.PI, phi = Math.acos(2 * h2 - 1);
+    const nx = Math.sin(phi) * Math.cos(th), ny = Math.cos(phi), nz = Math.sin(phi) * Math.sin(th);
+    let ux = -ny, uy = nx; const uz = 0; const ul = Math.max(1e-6, Math.sqrt(ux * ux + uy * uy)); ux /= ul; uy /= ul;
+    const vx = ny * uz - nz * uy, vy = nz * ux - nx * uz, vz = nx * uy - ny * ux, speed = (0.25 + 0.55 * h3) * (h3 > 0.5 ? 1 : -1);
+    for (let k = 0; k < ghostN; k++) { const a = (k / ghostN) * 2 * Math.PI, [px, py, z] = pt((ux * Math.cos(a) + vx * Math.sin(a)) * ro, (uy * Math.cos(a) + vy * Math.sin(a)) * ro, (uz * Math.cos(a) + vz * Math.sin(a)) * ro); const depth = (z / ro + 1) / 2; dots.push({ x: px, y: py, z, r: (o.ghostR ?? 0.9) * rs, white: 0.72, a: (o.ghostA ?? 0.5) * (0.4 + 0.6 * depth) }); }
+    for (let m = 0; m < particles; m++) { const a = t * speed + (m / particles) * 2 * Math.PI + h2 * 6, [px, py, z] = pt((ux * Math.cos(a) + vx * Math.sin(a)) * ro, (uy * Math.cos(a) + vy * Math.sin(a)) * ro, (uz * Math.cos(a) + vz * Math.sin(a)) * ro); const depth = (z / ro + 1) / 2; dots.push({ x: px, y: py, z, r: ((o.partR ?? 1.2) + (o.partRDepth ?? 1.6) * depth) * rs, white: 0.3 - 0.22 * depth }); }
+  }
+  paint(ctx, dots, dark, o.rMin);
+}
+function drawGlobe(ctx, size, t, dark, o) {
+  const spin = 0.5, cx = size / 2, cy = size / 2, radius = (size / 2) * 0.82, tilt = 0.4 + 0.06 * Math.sin(t * 0.35), pt = makeProj(t * spin, tilt, cx, cy, radius);
+  const scan = t * (spin + (1.7 - spin) * (o.scanMul ?? 1)), rs = radiusScale(size, o.rsPow ?? 0.6), dimBase = o.dimBase ?? 1, dots = [], latRings = o.latRings ?? 17, lonDensity = o.lonDensity ?? 44;
+  for (let li = 0; li <= latRings; li++) {
+    const lat = -Math.PI / 2 + (li / latRings) * Math.PI, cosLat = Math.cos(lat), sinLat = Math.sin(lat), lonCount = Math.max(1, Math.round(Math.abs(cosLat) * lonDensity));
+    for (let lj = 0; lj < lonCount; lj++) { const lon = (lj / lonCount) * 2 * Math.PI, [px, py, z] = pt(cosLat * Math.cos(lon), sinLat, cosLat * Math.sin(lon)); const depth = (z + 1) / 2, d = angleDelta(lon + t * spin, scan), boost = Math.exp(-(d * d) / 0.18) * Math.max(0, z); dots.push({ x: px, y: py, z, r: ((o.rBase ?? 0.6) + (o.rDepth ?? 1.7) * depth + (o.rBoost ?? 1) * boost) * rs, white: (o.inkFar ?? 0.62) - (o.inkSpan ?? 0.54) * depth, a: dimBase + (1 - dimBase) * Math.min(1, boost) }); }
+  }
+  paint(ctx, dots, dark, o.rMin);
+}
+function solveCycle(time, count, slotDur, rest) {
+  const cyc = 2 * count * slotDur + rest, tc = time % cyc, amount = new Array(count).fill(0); let active = -1;
+  if (tc < 2 * count * slotDur) { const slot = Math.floor(tc / slotDur), p = (tc - slot * slotDur) / slotDur, cl = Math.min(1, p / 0.7), ep = 1 - (1 - cl) ** 3; if (slot < count) { for (let i = 0; i < slot; i++) amount[i] = 1; amount[slot] = ep; active = slot; } else { const u = 2 * count - 1 - slot; for (let i = 0; i < u; i++) amount[i] = 1; amount[u] = 1 - ep; active = u; } }
+  return { amount, active };
+}
+function applyMoves(pt3, moves, sc) {
+  let [x, y, z] = pt3; let inActive = false;
+  for (let i = 0; i < moves.length; i++) { if (sc.amount[i] <= 0) continue; const mv = moves[i], coord = mv.axis === 0 ? x : mv.axis === 1 ? y : z; if (coord < mv.lo || coord >= mv.hi) continue; if (i === sc.active) inActive = true; const a = mv.ang * sc.amount[i], ca = Math.cos(a), sa = Math.sin(a); if (mv.axis === 0) { const y2 = y * ca - z * sa; z = y * sa + z * ca; y = y2; } else if (mv.axis === 1) { const x2 = x * ca + z * sa; z = -x * sa + z * ca; x = x2; } else { const x2 = x * ca - y * sa; y = x * sa + y * ca; x = x2; } }
+  return [x, y, z, inActive];
+}
+function makeMoves(count) { const moves = []; for (let i = 0; i < count; i++) { const axis = Math.min(2, Math.floor(hashD(i, 2.3) * 3)); const lo = -1.0 + 0.5 * Math.min(3, Math.floor(hashD(i, 5.9) * 4)); const dir = hashD(i, 7.7) < 0.5 ? 1 : -1; moves.push({ axis, lo, hi: lo + 0.5, ang: (dir * Math.PI) / 2 }); } return moves; }
+function drawRubik(ctx, size, t, dark, o) {
+  const cx = size / 2, cy = size / 2, R = (size / 2) * 0.82, pt = makeProj(t * 0.55, 0.35 + 0.1 * Math.sin(t * 0.9), cx, cy, R), rs = radiusScale(size, o.rsPow ?? 0.6), moveCount = o.moveCount ?? 14, moves = makeMoves(moveCount), sc = solveCycle(t, moveCount, 0.42, 1.2);
+  const dots = [], latRings = o.latRings ?? 15, lonDensity = o.lonDensity ?? 40;
+  for (let li = 0; li <= latRings; li++) { const lat = -Math.PI / 2 + (li / latRings) * Math.PI, cosLat = Math.cos(lat), sinLat = Math.sin(lat), lonCount = Math.max(1, Math.round(Math.abs(cosLat) * lonDensity)); for (let lj = 0; lj < lonCount; lj++) { const lon = (lj / lonCount) * 2 * Math.PI, [x, y, z, inActive] = applyMoves([cosLat * Math.cos(lon), sinLat, cosLat * Math.sin(lon)], moves, sc), [px, py, zr] = pt(x, y, z); const depth = (zr + 1) / 2; dots.push({ x: px, y: py, z: zr, r: ((o.rBase ?? 0.6) + (o.rDepth ?? 1.7) * depth + (inActive ? (o.rActive ?? 0.3) : 0)) * rs, white: (o.inkFar ?? 0.62) - (o.inkSpan ?? 0.54) * depth - (inActive ? 0.14 : 0) }); } }
+  paint(ctx, dots, dark, o.rMin);
+}
+function drawWave(ctx, size, t, dark, o) {
+  const cx = size / 2, cy = size / 2, R = (size / 2) * 0.874, pt = makeProj(t * 0.18, 0.38, cx, cy, 1), rs = radiusScale(size, o.rsPow ?? 0.6), dots = [], rings = o.rings ?? 15, lonDensity = o.lonDensity ?? 40;
+  for (let ri = 0; ri <= rings; ri++) { const lat = -Math.PI / 2 + (ri / rings) * Math.PI, cosLat = Math.cos(lat), sinLat = Math.sin(lat), w = 0.62 * Math.sin(t * 2.1 - ri * 0.52) + 0.38 * Math.sin(t * 1.27 + ri * 0.83), rr = R * (0.88 + 0.105 * w), lonCount = Math.max(1, Math.round(Math.abs(cosLat) * lonDensity)); for (let lj = 0; lj < lonCount; lj++) { const lon = (lj / lonCount) * 2 * Math.PI, [px, py, z] = pt(cosLat * Math.cos(lon) * rr, sinLat * rr, cosLat * Math.sin(lon) * rr); const depth = (z / R + 1) / 2, crest = Math.max(0, w); dots.push({ x: px, y: py, z, r: ((o.rBase ?? 0.6) + (o.rDepth ?? 1.7) * depth) * (1 + 0.4 * crest) * rs, white: 0.66 - 0.56 * depth - 0.1 * crest }); } }
+  paint(ctx, dots, dark, o.rMin);
+}
+function drawWeb(ctx, size, t, dark, o) {
+  const cx = size / 2, cy = size / 2, R = (size / 2) * 0.8 * (o.spread ?? 1), pt = makeProj(t * 0.12, 0.32, cx, cy, R), rs = radiusScale(size, o.rsPow ?? 0.6), nodeN = o.nodeN ?? 30, thr = o.thr ?? 0.72, nodeR = o.nodeR ?? 1.4, nodeRDepth = o.nodeRDepth ?? 1.8, nodes = [];
+  for (let i = 0; i < nodeN; i++) { const d = fibDir(i, nodeN), x = d[0] + 0.3 * (vnoise(i * 0.31 + 9, t * 0.24) - 0.5) * 2, y = d[1] + 0.3 * (vnoise(i * 0.53 + 27, t * 0.21) - 0.5) * 2, z = d[2] + 0.3 * (vnoise(i * 0.77 + 55, t * 0.27) - 0.5) * 2, l = Math.sqrt(x * x + y * y + z * z); nodes.push([x / l, y / l, z / l]); }
+  const lines = [], dots = [];
+  for (let i = 0; i < nodeN; i++) for (let j = i + 1; j < nodeN; j++) { const dx = nodes[i][0] - nodes[j][0], dy = nodes[i][1] - nodes[j][1], dz = nodes[i][2] - nodes[j][2], dist = Math.sqrt(dx * dx + dy * dy + dz * dz); if (dist >= thr) continue; const [x1, y1, z1] = pt(nodes[i][0], nodes[i][1], nodes[i][2]), [x2, y2, z2] = pt(nodes[j][0], nodes[j][1], nodes[j][2]), depth = ((z1 + z2) / 2 + 1) / 2; lines.push({ x1, y1, x2, y2, white: 0.42, a: (1 - dist / thr) * (0.3 + 0.55 * depth), w: Math.max(0.6, (o.lineW ?? 0.8) * rs) }); }
+  for (let i = 0; i < nodeN; i++) { const [px, py, z] = pt(nodes[i][0], nodes[i][1], nodes[i][2]), depth = (z + 1) / 2, pulse = 1 + 0.25 * Math.sin(t * 1.4 + i * 2.7); dots.push({ x: px, y: py, z, r: (nodeR + nodeRDepth * depth) * pulse * rs, white: 0.55 - 0.45 * depth }); }
+  const signals = o.signals ?? 5;
+  for (let s = 0; s < signals; s++) { const seg = Math.floor(t * 0.55 + s * 7.31), a = Math.floor(hashD(seg, s * 3.1 + 1.7) * nodeN), b = Math.floor(hashD(seg, s * 5.7 + 4.2) * nodeN); if (a === b) continue; const f = frac(t * 0.55 + s * 7.31), x = lerp(nodes[a][0], nodes[b][0], f), y = lerp(nodes[a][1], nodes[b][1], f), z = lerp(nodes[a][2], nodes[b][2], f), l = Math.max(1e-6, Math.sqrt(x * x + y * y + z * z)), [px, py, zr] = pt(x / l, y / l, z / l), depth = (zr + 1) / 2; dots.push({ x: px, y: py, z: zr, r: (nodeR * 1.5 + nodeRDepth * depth) * rs, white: 0.05, a: 0.5 + 0.5 * depth }); }
+  paintLines(ctx, lines, dark); paint(ctx, dots, dark, o.rMin);
+}
+function drawBraid(ctx, size, t, dark, o) {
+  const cx = size / 2, cy = size / 2, R = (size / 2) * 0.76, pt = makeProj(t * 0.4, 0.3, cx, cy, 1), rs = radiusScale(size, o.rsPow ?? 0.6), dots = [], ghostN = o.ghostN ?? 150;
+  for (let i = 0; i < ghostN; i++) { const d = fibDir(i, ghostN), [px, py, z] = pt(d[0] * R, d[1] * R, d[2] * R), depth = (z / R + 1) / 2; dots.push({ x: px, y: py, z, r: 0.8 * rs, white: 0.78, a: 0.1 + 0.22 * depth }); }
+  const strandN = o.strandN ?? 52, turns = o.turns ?? 3;
+  for (let s = 0; s < 3; s++) { const phase = (s / 3) * 2 * Math.PI; for (let i = 0; i < strandN; i++) { const u = (frac(i / strandN + t * 0.045) * 2 - 1) * 0.96, surf = Math.sqrt(Math.max(0, 1 - u * u)), endFade = Math.min(1, (1 - Math.abs(u)) / 0.1), a = u * Math.PI * turns + phase, weave = 1 + 0.075 * Math.sin(u * Math.PI * turns * 2 + phase * 2 + t * 0.8), rr = surf * R * weave, [px, py, zr] = pt(Math.cos(a) * rr, u * R * weave, Math.sin(a) * rr), depth = (zr / R + 1) / 2; dots.push({ x: px, y: py, z: zr, r: ((o.rBase ?? 1.2) + (o.rDepth ?? 1.8) * depth) * rs, white: 0.55 - 0.45 * depth, a: endFade * (0.45 + 0.55 * depth) }); } }
+  paint(ctx, dots, dark, o.rMin);
+}
+function drawRibbon(ctx, size, t, dark, o) {
+  const cx = size / 2, cy = size / 2, R = (size / 2) * 0.78, spin = o.spin ?? 1, camTilt = 0.3, pt = makeProj(t * 0.1 * spin, camTilt, cx, cy, 1), rs = radiusScale(size, o.rsPow ?? 0.6), dots = [], ghostN = o.ghostN ?? 150;
+  for (let i = 0; i < ghostN; i++) { const d = fibDir(i, ghostN), [px, py, z] = pt(d[0] * R, d[1] * R, d[2] * R), depth = (z / R + 1) / 2; dots.push({ x: px, y: py, z, r: 0.8 * rs, white: 0.78, a: 0.1 + 0.22 * depth }); }
+  const ya = t * 0.24 * spin, ta = o.faceOn ? -camTilt : 0.55 + 0.3 * Math.sin(t * 0.18) * spin, ux = Math.cos(ya), uy = 0, uz = Math.sin(ya), vx = -uz * Math.sin(ta), vy = Math.cos(ta), vz = ux * Math.sin(ta), nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, wobAmp = 0.23 * (o.wobMul ?? 1), baseR = o.faceOn ? R / (1 + 0.85 * wobAmp) : R, baseLanes = o.lanes ?? 5, segs = o.segs ?? 88, lanes = Math.max(1, Math.round(baseLanes * (o.bandMul ?? 1)));
+  for (let w = 0; w < lanes; w++) { const laneOff = (w - (lanes - 1) / 2) * 0.075, edge = Math.abs(w - (lanes - 1) / 2) / Math.max(1, (lanes - 1) / 2); for (let k = 0; k < segs; k++) { const a = (k / segs) * 2 * Math.PI, wob = (0.16 * Math.sin(a * 3 - t * 1.7 + w * 0.22) + 0.07 * Math.sin(a * 5 + t * 1.1)) * (o.wobMul ?? 1), radial = o.faceOn ? 1 + wob : 1, off = o.faceOn ? laneOff : laneOff + wob, x = ux * Math.cos(a) + vx * Math.sin(a) + nx * off, y = uy * Math.cos(a) + vy * Math.sin(a) + ny * off, z = uz * Math.cos(a) + vz * Math.sin(a) + nz * off, l = Math.sqrt(x * x + y * y + z * z), rr = baseR * radial, [px, py, zr] = pt((x / l) * rr, (y / l) * rr, (z / l) * rr), depth = (zr / R + 1) / 2; dots.push({ x: px, y: py, z: zr, r: ((o.rBase ?? 1.1) + (o.rDepth ?? 1.7) * depth) * (1 - 0.25 * edge) * rs, white: 0.52 - 0.44 * depth + 0.18 * edge, a: 0.4 + 0.6 * depth }); } }
+  paint(ctx, dots, dark, o.rMin);
+}
+function smoothE(x) { return x * x * (3 - 2 * x); }
+function polyPath(verts) { const V = verts.length, L = []; let total = 0; for (let i = 0; i < V; i++) { const a = verts[i], b = verts[(i + 1) % V]; const l = Math.hypot(b[0] - a[0], b[1] - a[1]); L.push(l); total += l; } return (f) => { let target = f * total, i = 0; while (target > L[i] && i < V - 1) { target -= L[i]; i++; } const a = verts[i], b = verts[(i + 1) % V], ff = L[i] ? Math.min(1, target / L[i]) : 0; return [a[0] + (b[0] - a[0]) * ff, a[1] + (b[1] - a[1]) * ff]; }; }
+const M_CIRCLE = (f) => { const a = -Math.PI / 2 + f * 2 * Math.PI; return [Math.cos(a) * 0.24, Math.sin(a) * 0.24]; };
+const M_TRIANGLE = polyPath([[0.0, -0.26], [0.24, 0.16], [-0.24, 0.16]]);
+const M_SQUARE = polyPath([[0, -0.2], [0.2, -0.2], [0.2, 0.2], [-0.2, 0.2], [-0.2, -0.2]]);
+const M_CYCLE = [M_CIRCLE, M_TRIANGLE, M_SQUARE], M_HOLD = 1.4, M_MORPH = 0.9, M_SEG = M_HOLD + M_MORPH;
+function drawMorph(ctx, size, t, dark, o) {
+  const K = M_CYCLE.length, tc = t % (M_SEG * K), k = Math.floor(tc / M_SEG), local = tc - k * M_SEG, m = local > M_HOLD ? smoothE((local - M_HOLD) / M_MORPH) : 0, sprd = o.spread ?? 1, pA = M_CYCLE[k], pB = M_CYCLE[(k + 1) % K], MM = 160, pts = [];
+  for (let i = 0; i < MM; i++) { const f = i / MM, a = pA(f), b = pB(f); pts.push([(a[0] + (b[0] - a[0]) * m) * sprd, (a[1] + (b[1] - a[1]) * m) * sprd]); }
+  const L = []; let total = 0; for (let i = 0; i < MM; i++) { const a = pts[i], b = pts[(i + 1) % MM]; const l = Math.hypot(b[0] - a[0], b[1] - a[1]); L.push(l); total += l; }
+  const n = Math.max(6, Math.round(34 * (o.iconD ?? 1))), re = (o.rDot ?? 0.021) * 1.35 * sprd, pulse = 1 + 0.02 * Math.sin(local * 3.1), dots = [], c2 = size / 2; let seg = 0, acc = 0;
+  for (let k2 = 0; k2 < n; k2++) { const target = (k2 / n) * total; while (acc + L[seg] < target && seg < MM - 1) { acc += L[seg]; seg++; } const a = pts[seg], b = pts[(seg + 1) % MM], f = L[seg] ? Math.min(1, (target - acc) / L[seg]) : 0, x = (a[0] + (b[0] - a[0]) * f) * pulse, y = (a[1] + (b[1] - a[1]) * f) * pulse; dots.push({ x: c2 + x * size, y: c2 + y * size, z: 0, r: Math.max(0.35, re * size), white: 0.1 }); }
+  paint(ctx, dots, dark, o.rMin);
+}
+
+// ---- profiles + presets (Thinking Orbs engine) -----------------------------
+const COUNT_PAIRS = [['latRings', 'lonDensity'], ['rings', 'lonDensity'], ['lanes', 'segs']];
+const COUNT_KEYS = ['orbitN', 'ghostN', 'nodeN', 'strandN', 'signals'];
+const RADIUS_KEYS = ['rBase', 'rDepth', 'rActive', 'rDot', 'ghostR', 'partR', 'partRDepth', 'nodeR', 'nodeRDepth'];
+function scaleCounts(opts, scale) { const out = { ...opts }, done = new Set(), rt = Math.sqrt(scale); for (const [a, b] of COUNT_PAIRS) { const va = out[a], vb = out[b]; if (va != null && vb != null && !done.has(a) && !done.has(b)) { out[a] = Math.max(2, Math.round(va * rt)); out[b] = Math.max(2, Math.round(vb * rt)); done.add(a); done.add(b); } } for (const k of COUNT_KEYS) { const v = out[k]; if (v != null && v !== 0 && !done.has(k)) out[k] = Math.max(1, Math.round(v * scale)); } if (out.iconD != null) out.iconD = Math.max(0.02, out.iconD * scale); return out; }
+function scaleRadii(opts, scale) { const out = { ...opts }; for (const k of RADIUS_KEYS) { const v = out[k]; if (v != null) out[k] = v * scale; } out.rSizeMul = (out.rSizeMul ?? 1) * scale; return out; }
+const BASE_PROFILES = {
+  globe: { latRings: 17, lonDensity: 44, rBase: 0.6, rDepth: 1.7, rBoost: 1.0, inkFar: 0.62, inkSpan: 0.54, rsPow: 0.6, rMin: 0.3 },
+  orbits: { orbitN: 12, ghostN: 40, ghostR: 0.9, ghostA: 0.5, particles: 3, partR: 1.2, partRDepth: 1.6, rsPow: 0.6, rMin: 0.3 },
+  rubik: { latRings: 15, lonDensity: 40, moveCount: 14, rBase: 0.6, rDepth: 1.7, rActive: 0.3, inkFar: 0.62, inkSpan: 0.54, rsPow: 0.6, rMin: 0.3 },
+  wave: { rings: 15, lonDensity: 40, rBase: 0.6, rDepth: 1.7, rsPow: 0.6, rMin: 0.3 },
+  web: { nodeN: 30, thr: 0.72, signals: 5, nodeR: 1.4, nodeRDepth: 1.8, lineW: 0.8, rsPow: 0.6, rMin: 0.3 },
+  braid: { strandN: 52, turns: 3.0, ghostN: 150, rBase: 1.2, rDepth: 1.8, rsPow: 0.6, rMin: 0.3 },
+  ribbon: { lanes: 5, segs: 88, ghostN: 150, rBase: 1.1, rDepth: 1.7, rsPow: 0.6, rMin: 0.3 },
+  ring: { lanes: 5, segs: 88, ghostN: 0, faceOn: 1, rBase: 1.1, rDepth: 1.7, rsPow: 0.6, rMin: 0.3 },
+  morph: { rDot: 0.021, iconD: 1, rMin: 0.25 }
+};
+const STATE_TO_MODE = { working: 'orbits', searching: 'globe', solving: 'rubik', listening: 'wave', connecting: 'web', weaving: 'braid', composing: 'ribbon', breathing: 'ring', shaping: 'morph' };
+const MODE_DRAWS = { orbits: drawOrbits, globe: drawGlobe, rubik: drawRubik, wave: drawWave, web: drawWeb, braid: drawBraid, ribbon: drawRibbon, ring: drawRibbon, morph: drawMorph };
+// preset multipliers (size-64 tunings) + shared clock speed
+const PRESET64 = {
+  orbits: { speed: 1.885, count: 1, size: 1 }, globe: { speed: 2.015, count: 0.42, size: 1.15, extra: { scanMul: 4.08, dimBase: 0.45 } },
+  rubik: { speed: 1.82, count: 0.35, size: 1.05 }, wave: { speed: 4.388, count: 0.341, size: 1 },
+  web: { speed: 3.315, count: 1.35, size: 0.95 }, braid: { speed: 1.625, count: 0.5, size: 1 },
+  ribbon: { speed: 2.34, count: 0.25, size: 0.85, extra: { spin: 0, bandMul: 3.9, wobMul: 1 } },
+  ring: { speed: 3.24, count: 0.25, size: 0.956, extra: { spin: 0, bandMul: 3.627, wobMul: 0.368 } },
+  morph: { speed: 2.405, count: 0.702, size: 0.395, extra: { spread: 1.45 } }
+};
+function resolve(state) {
+  const mode = STATE_TO_MODE[state], preset = PRESET64[mode]; let opts = { ...BASE_PROFILES[mode] };
+  if (preset.count !== 1) opts = scaleCounts(opts, preset.count);
+  if (preset.size !== 1) opts = scaleRadii(opts, preset.size);
+  if (preset.extra) opts = { ...opts, ...preset.extra };
+  return { mode, speed: preset.speed, opts, draw: MODE_DRAWS[mode] };
+}
+
+// ---- braille rasterizer (original) -----------------------------------------
+// draw a mode into an offscreen canvas, then threshold each 2×4 pixel block
+// into one braille cell. Always rasterized in dark mode (bright dots) so the
+// threshold is consistent; the display colour follows the page theme.
+const DOTBITS = [[0x01, 0x08], [0x02, 0x10], [0x04, 0x20], [0x40, 0x80]];
+const COLS = 24, ROWS = 12, PW = COLS * 2, PH = ROWS * 4;
+const off = document.createElement('canvas');
+off.width = PW; off.height = PH;
+const octx = off.getContext('2d', { willReadFrequently: true });
+
+function rasterize(orb, t) {
+  octx.clearRect(0, 0, PW, PH);
+  orb.draw(octx, PW, t, true, orb.opts); // draw at native pixel-grid size, dark
+  const data = octx.getImageData(0, 0, PW, PH).data;
+  let out = '';
+  for (let cy = 0; cy < ROWS; cy++) {
+    for (let cx = 0; cx < COLS; cx++) {
+      let mask = 0;
+      for (let dy = 0; dy < 4; dy++) for (let dx = 0; dx < 2; dx++) {
+        const px = cx * 2 + dx, py = cy * 4 + dy, idx = (py * PW + px) * 4;
+        if (data[idx + 3] > 45 && (data[idx] + data[idx + 1] + data[idx + 2]) / 3 > 65) mask |= DOTBITS[dy][dx];
+      }
+      out += String.fromCharCode(0x2800 + mask);
+    }
+    out += '\n';
+  }
+  return out;
+}
+
+// ---- gallery ---------------------------------------------------------------
+const STATES = [
+  { state: 'working', label: 'Working', engine: 'orbits' },
+  { state: 'searching', label: 'Searching', engine: 'globe' },
+  { state: 'solving', label: 'Solving', engine: 'rubik' },
+  { state: 'listening', label: 'Listening', engine: 'wave' },
+  { state: 'connecting', label: 'Connecting', engine: 'web' },
+  { state: 'weaving', label: 'Weaving', engine: 'braid' },
+  { state: 'composing', label: 'Composing', engine: 'ribbon' },
+  { state: 'breathing', label: 'Breathing', engine: 'ring' },
+  { state: 'shaping', label: 'Shaping', engine: 'morph' }
+];
+const grid = document.getElementById('grid'), body = document.body;
+const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (reduced) body.classList.add('reduced');
+
+const orbs = STATES.map((s) => {
+  const r = resolve(s.state);
+  const card = document.createElement('div'); card.className = 'card';
+  const preview = document.createElement('div'); preview.className = 'card-preview';
+  const pre = document.createElement('pre'); preview.appendChild(pre);
+  const bodyEl = document.createElement('div'); bodyEl.className = 'card-body';
+  bodyEl.innerHTML = `<div class="card-title">${s.label}</div><div class="card-sub">${s.engine} · braille</div>`;
+  card.appendChild(preview); card.appendChild(bodyEl); grid.appendChild(card);
+  return { ...s, ...r, pre };
+});
+
+function frame(now) { for (const orb of orbs) orb.pre.textContent = rasterize(orb, now * orb.speed); }
+let raf = 0, running = false;
+function loop() { frame(performance.now() / 1000); if (running) raf = requestAnimationFrame(loop); }
+function start() { if (running || reduced) return; running = true; raf = requestAnimationFrame(loop); }
+function stop() { running = false; cancelAnimationFrame(raf); }
+
+document.getElementById('seg-theme').addEventListener('click', (e) => {
+  const btn = e.target.closest('button'); if (!btn) return;
+  body.dataset.theme = btn.dataset.theme;
+  document.querySelectorAll('#seg-theme button').forEach((b) => b.classList.toggle('active', b === btn));
+});
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') stop(); else start(); });
+
+if (reduced) frame(0.6); else start();
+</script>
+
+</body>
+</html>
