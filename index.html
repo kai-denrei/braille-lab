@@ -328,6 +328,23 @@
     </div>
   </div>
 
+  <div class="card">
+    <div class="card-preview">
+      <canvas id="p-fun" style="width:64px;height:64px;display:block;"></canvas>
+    </div>
+    <div class="card-body">
+      <div class="card-title">Fun Shapes</div>
+      <div class="card-desc">Playful dotted-halftone bodies — a volumetric heart, torus knot, spiral, shell, teardrop, snowflake, and a lo-fi skull and ghost.</div>
+      <div class="card-tags">
+        <span class="tag">3d dots</span>
+        <span class="tag">organic</span>
+        <span class="tag">showcase</span>
+      </div>
+      <a class="card-link" href="fun-shapes/index.html">Open fun shapes &rarr;</a>
+      <span class="deep-link" data-path="fun-shapes/index.html">[deep link]</span>
+    </div>
+  </div>
+
 </div>
 
 <footer>braille lab — exploring the 256 states of ⠀ through ⣿ · <a href="about.html" style="color:#555;text-decoration:none;">about</a><div style="margin-top:8px;font-size:10px;color:#2a2a2a;letter-spacing:0.15em;">v0.1.0</div></footer>
@@ -839,6 +856,34 @@ document.querySelectorAll('.deep-link').forEach(el => {
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (reduced) { drawRing(0.6); return; }
   (function loop() { drawRing(performance.now() / 1000 * SPEED); requestAnimationFrame(loop); })();
+})();
+</script>
+
+<script>
+// Fun Shapes homepage preview — a spinning six-fold snowflake (geometry original).
+(function () {
+  const canvas = document.getElementById('p-fun'); if (!canvas) return;
+  const SIZE = 64, DPR = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = Math.round(SIZE * DPR); canvas.height = Math.round(SIZE * DPR);
+  const ctx = canvas.getContext('2d'), rs = (SIZE / 300) ** 0.6;
+  const pts = (() => {
+    const p = [], arms = 6;
+    for (let k = 0; k < arms; k++) {
+      const base = k / arms * 2 * Math.PI;
+      for (let i = 1; i <= 40; i++) { const rr = i / 40; p.push([rr * Math.cos(base), rr * Math.sin(base)]); }
+      for (const br of [0.34, 0.54, 0.74]) for (const sgn of [-1, 1]) { const bang = base + sgn * 0.55, sx = br * Math.cos(base), sy = br * Math.sin(base); for (let j = 1; j <= 8; j++) { const e = j / 8 * 0.24; p.push([sx + e * Math.cos(bang), sy + e * Math.sin(bang)]); } }
+    }
+    let m = 0; for (const q of p) m = Math.max(m, Math.hypot(q[0], q[1]));
+    return p.map((q) => [q[0] / m, q[1] / m]);
+  })();
+  function draw(t) {
+    const cx = SIZE / 2, cy = SIZE / 2, R = (SIZE / 2) * 0.82, a = t * 0.5, ca = Math.cos(a), sa = Math.sin(a);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, SIZE, SIZE);
+    for (const q of pts) { const x = q[0] * ca - q[1] * sa, y = q[0] * sa + q[1] * ca; ctx.fillStyle = 'rgba(223,228,238,0.9)'; ctx.beginPath(); ctx.arc(cx + x * R, cy - y * R, Math.max(0.4, 0.9 * rs), 0, Math.PI * 2); ctx.fill(); }
+  }
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduced) { draw(0.6); return; }
+  (function loop() { draw(performance.now() / 1000); requestAnimationFrame(loop); })();
 })();
 </script>
 
