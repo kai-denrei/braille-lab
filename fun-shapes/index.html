@@ -233,16 +233,24 @@ function catPts() {
   return fitUnit(pts);
 }
 
-// SONGS — the twin concrete containment domes of San Onofre, on a platform
+// SONGS — the twin concrete containment domes of San Onofre, on a tiered base
 function songsPts() {
   const pts = [];
   const dome = (cx) => {
     const R = 0.5, baseY = -0.15;
-    for (let i = 0; i < 240; i++) { const d = fibDir(i, 240); if (d[1] < 0) continue; pts.push([cx + d[0] * R, baseY + d[1] * R, d[2] * R]); }
-    for (let iy = 0; iy < 6; iy++) { const y = baseY - iy / 6 * 0.28; for (let a = 0; a < 30; a++) { const ang = a / 30 * 2 * Math.PI; pts.push([cx + R * Math.cos(ang), y, R * Math.sin(ang)]); } }
+    for (let i = 0; i < 260; i++) { const d = fibDir(i, 260); if (d[1] < 0) continue; pts.push([cx + d[0] * R, baseY + d[1] * R, d[2] * R]); }
+    for (let iy = 0; iy < 7; iy++) { const y = baseY - iy / 7 * 0.3; for (let a = 0; a < 34; a++) { const ang = a / 34 * 2 * Math.PI; pts.push([cx + R * Math.cos(ang), y, R * Math.sin(ang)]); } }
   };
   dome(-0.58); dome(0.58);
-  for (let ix = 0; ix <= 26; ix++) for (let iz = 0; iz <= 8; iz++) pts.push([-1.35 + ix / 26 * 2.7, -0.46, -0.5 + iz / 8]);
+  // concrete platform: a solid slab (top grid + perimeter walls), two tiers
+  const slab = (x0, x1, z0, z1, top, bot, nx, nz) => {
+    for (let ix = 0; ix <= nx; ix++) for (let iz = 0; iz <= nz; iz++) pts.push([x0 + (x1 - x0) * ix / nx, top, z0 + (z1 - z0) * iz / nz]);
+    const wall = (x, z) => { for (let iy = 1; iy <= 5; iy++) pts.push([x, top - (top - bot) * iy / 5, z]); };
+    for (let ix = 0; ix <= nx; ix++) { wall(x0 + (x1 - x0) * ix / nx, z0); wall(x0 + (x1 - x0) * ix / nx, z1); }
+    for (let iz = 0; iz <= nz; iz++) { wall(x0, z0 + (z1 - z0) * iz / nz); wall(x1, z0 + (z1 - z0) * iz / nz); }
+  };
+  slab(-1.3, 1.3, -0.5, 0.5, -0.45, -0.62, 26, 10);     // upper deck the domes sit on
+  slab(-1.6, 1.6, -0.7, 0.7, -0.62, -0.82, 28, 11);      // wider base ledge
   return fitUnit(pts);
 }
 // kettlebell — a heavy bell with an arched handle
@@ -254,11 +262,25 @@ function kettlebellPts() {
   for (const sgn of [-1, 1]) for (let iy = 0; iy < 8; iy++) { const y = cy - iy / 8 * 0.32; for (let m = 0; m < 4; m++) { const a2 = m / 4 * 2 * Math.PI; pts.push([sgn * Rh + tr * Math.cos(a2), y, tr * Math.sin(a2)]); } }
   return fitUnit(pts);
 }
-// stick — a slightly bent rod with a small twig
+// stick — a real branch: tapered bark-textured trunk, side twigs, a forked tip
 function stickPts() {
-  const pts = [], N = 64;
-  for (let i = 0; i < N; i++) { const t = i / (N - 1), y = (t - 0.5) * 1.8, bend = 0.14 * Math.sin(t * 2.6), r = 0.055 * (1 - 0.4 * Math.abs(t - 0.5) * 2) + 0.02; for (let m = 0; m < 6; m++) { const a = m / 6 * 2 * Math.PI; pts.push([bend + r * Math.cos(a), y, r * Math.sin(a)]); } }
-  for (let i = 0; i < 14; i++) { const f = i / 14; for (let m = 0; m < 4; m++) { const a = m / 4 * 2 * Math.PI, rr = 0.032; pts.push([0.05 + f * 0.34 + rr * Math.cos(a), 0.2 + f * 0.26, rr * Math.sin(a)]); } }
+  const pts = [];
+  const branch = (base, dir, len, r0, r1, steps, tube) => {
+    const T = normV(dir); let n1 = normV(crossV(T, [0, 1, 0.013])); const n2 = crossV(T, n1);
+    for (let i = 0; i <= steps; i++) { const f = i / steps, r = (r0 + (r1 - r0) * f) * (1 + 0.2 * (hsh(i * 7.3 + base[1] * 11 + base[0] * 5) - 0.5)); const c = [base[0] + T[0] * len * f, base[1] + T[1] * len * f, base[2] + T[2] * len * f]; for (let m = 0; m < tube; m++) { const a = m / tube * 2 * Math.PI, cs = Math.cos(a), sn = Math.sin(a); pts.push([c[0] + r * (cs * n1[0] + sn * n2[0]), c[1] + r * (cs * n1[1] + sn * n2[1]), c[2] + r * (cs * n1[2] + sn * n2[2])]); } }
+    return [base[0] + T[0] * len, base[1] + T[1] * len, base[2] + T[2] * len];
+  };
+  // trunk in slightly-bent segments (tapering)
+  let base = [0, -0.9, 0];
+  const dirs = [[0.09, 1, 0.03], [-0.06, 1, 0.07], [0.11, 1, -0.05], [0.0, 1, 0.06]], rr = [0.075, 0.062, 0.05, 0.038, 0.028];
+  for (let k = 0; k < 4; k++) base = branch(base, dirs[k], 0.45, rr[k], rr[k + 1], 9, 6);
+  // side twigs
+  branch([0.03, -0.35, 0.02], [0.7, 0.6, 0.3], 0.4, 0.03, 0.012, 8, 4);
+  branch([-0.03, 0.05, 0.0], [-0.6, 0.7, -0.4], 0.38, 0.028, 0.01, 8, 4);
+  branch([0.06, 0.35, 0.02], [0.5, 0.65, 0.5], 0.3, 0.022, 0.008, 6, 4);
+  // forked tip
+  branch(base, [0.35, 0.9, 0.1], 0.32, 0.026, 0.006, 7, 4);
+  branch(base, [-0.3, 0.92, -0.12], 0.28, 0.026, 0.006, 7, 4);
   return fitUnit(pts);
 }
 // banana — a curved, tapered tube (fatter middle, pointed ends)
