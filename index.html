@@ -260,6 +260,23 @@
     </div>
   </div>
 
+  <div class="card">
+    <div class="card-preview">
+      <canvas id="p-orbs" style="width:64px;height:64px;display:block;"></canvas>
+    </div>
+    <div class="card-body">
+      <div class="card-title">Thinking Orbs</div>
+      <div class="card-desc">Nine dotted 3D thought-orbs — one per agent state. A faithful vanilla-JS port of Jakub Antalik's Thinking Orbs (MIT).</div>
+      <div class="card-tags">
+        <span class="tag">canvas</span>
+        <span class="tag">3d dots</span>
+        <span class="tag">port</span>
+      </div>
+      <a class="card-link" href="thinking-orbs/index.html">Open thinking orbs &rarr;</a>
+      <span class="deep-link" data-path="thinking-orbs/index.html">[deep link]</span>
+    </div>
+  </div>
+
 </div>
 
 <footer>braille lab — exploring the 256 states of ⠀ through ⣿ · <a href="about.html" style="color:#555;text-decoration:none;">about</a><div style="margin-top:8px;font-size:10px;color:#2a2a2a;letter-spacing:0.15em;">v0.1.0</div></footer>
@@ -527,6 +544,95 @@ document.querySelectorAll('.deep-link').forEach(el => {
     setTimeout(() => el.textContent = '[deep link]', 1200);
   });
 });
+</script>
+
+<script>
+// Thinking Orbs homepage preview — a self-contained "breathing" (ring) orb.
+// Ported from Thinking Orbs by Jakub Antalik (MIT). The full nine-state port
+// lives in thinking-orbs/index.html. See thinking-orbs/LICENSE.
+(function () {
+  const canvas = document.getElementById('p-orbs');
+  if (!canvas) return;
+  const SIZE = 64, DPR = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = Math.round(SIZE * DPR);
+  canvas.height = Math.round(SIZE * DPR);
+  const ctx = canvas.getContext('2d');
+
+  function fibDir(i, n) {
+    const golden = Math.PI * (3 - Math.sqrt(5));
+    const y = 1 - (2 * (i + 0.5)) / n;
+    const rad = Math.sqrt(1 - y * y);
+    const a = i * golden;
+    return [rad * Math.cos(a), y, rad * Math.sin(a)];
+  }
+  function makeProj(yaw, tilt, cx, cy, scale) {
+    const st = Math.sin(tilt), ct = Math.cos(tilt), sy = Math.sin(yaw), cyw = Math.cos(yaw);
+    return (x, y, z) => {
+      const x1 = x * cyw + z * sy, z1 = -x * sy + z * cyw;
+      const y1 = y * ct - z1 * st, z2 = y * st + z1 * ct;
+      return [cx + x1 * scale, cy - y1 * scale, z2];
+    };
+  }
+  function paint(ctx, dots, dark, rMin) {
+    dots.sort((a, b) => a.z - b.z);
+    for (const d of dots) {
+      const alpha = d.a == null ? 1 : d.a;
+      if (alpha < 0.02) continue;
+      const w = Math.min(1, Math.max(0, d.white));
+      const g = Math.round((dark ? 1 - w : w) * 255);
+      ctx.fillStyle = `rgba(${g},${g},${g},${alpha})`;
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, Math.max(rMin, d.r), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  const radiusScale = (size, pow) => (size / 300) ** pow;
+
+  // resolved ring-64 preset (baked from BASE_PROFILES.ring × preset multipliers)
+  const O = { lanes: 3, segs: 44, ghostN: 0, faceOn: 1, rBase: 1.0516, rDepth: 1.6252, rsPow: 0.6, rMin: 0.3, spin: 0, bandMul: 3.627, wobMul: 0.368 };
+  const SPEED = 3.24;
+
+  function drawRing(t) {
+    const cx = SIZE / 2, cy = SIZE / 2, R = (SIZE / 2) * 0.78;
+    const spin = O.spin, camTilt = 0.3;
+    const pt = makeProj(t * 0.1 * spin, camTilt, cx, cy, 1);
+    const rs = radiusScale(SIZE, O.rsPow);
+    const dots = [];
+    const ya = t * 0.24 * spin;
+    const ta = O.faceOn ? -camTilt : 0.55 + 0.3 * Math.sin(t * 0.18) * spin;
+    const ux = Math.cos(ya), uy = 0, uz = Math.sin(ya);
+    const vx = -uz * Math.sin(ta), vy = Math.cos(ta), vz = ux * Math.sin(ta);
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    const wobAmp = 0.23 * O.wobMul;
+    const baseR = O.faceOn ? R / (1 + 0.85 * wobAmp) : R;
+    const lanes = Math.max(1, Math.round(O.lanes * O.bandMul));
+    for (let w = 0; w < lanes; w++) {
+      const laneOff = (w - (lanes - 1) / 2) * 0.075;
+      const edge = Math.abs(w - (lanes - 1) / 2) / Math.max(1, (lanes - 1) / 2);
+      for (let k = 0; k < O.segs; k++) {
+        const a = (k / O.segs) * 2 * Math.PI;
+        const wob = (0.16 * Math.sin(a * 3 - t * 1.7 + w * 0.22) + 0.07 * Math.sin(a * 5 + t * 1.1)) * O.wobMul;
+        const radial = O.faceOn ? 1 + wob : 1;
+        const off = O.faceOn ? laneOff : laneOff + wob;
+        const x = ux * Math.cos(a) + vx * Math.sin(a) + nx * off;
+        const y = uy * Math.cos(a) + vy * Math.sin(a) + ny * off;
+        const z = uz * Math.cos(a) + vz * Math.sin(a) + nz * off;
+        const l = Math.sqrt(x * x + y * y + z * z), rr = baseR * radial;
+        const [px, py, zr] = pt((x / l) * rr, (y / l) * rr, (z / l) * rr);
+        const depth = (zr / R + 1) / 2;
+        dots.push({ x: px, y: py, z: zr, r: ((O.rBase) + (O.rDepth) * depth) * (1 - 0.25 * edge) * rs, white: 0.52 - 0.44 * depth + 0.18 * edge, a: 0.4 + 0.6 * depth });
+      }
+    }
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.clearRect(0, 0, SIZE, SIZE);
+    paint(ctx, dots, true, O.rMin);
+  }
+
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduced) { drawRing(0.6 / SPEED); return; }
+  function loop() { drawRing(performance.now() / 1000 * SPEED); requestAnimationFrame(loop); }
+  loop();
+})();
 </script>
 
 </body>
