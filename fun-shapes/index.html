@@ -172,6 +172,61 @@ function ghostPts() {
   return fitUnit(out);
 }
 
+// double helix — two strands with connecting rungs
+function dnaPts() {
+  const pts = [], N = 92, turns = 2.4, rad = 0.5, H = 1.9;
+  for (let i = 0; i < N; i++) {
+    const s = i / (N - 1), th = s * turns * 2 * Math.PI, y = (s - 0.5) * H;
+    const a = [rad * Math.cos(th), y, rad * Math.sin(th)], b = [rad * Math.cos(th + Math.PI), y, rad * Math.sin(th + Math.PI)];
+    pts.push(a, b);
+    if (i % 4 === 0) for (let r = 1; r < 4; r++) { const f = r / 4; pts.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f]); }
+  }
+  return fitUnit(pts);
+}
+// gear / cog — a toothed wheel with hub and spokes (flat, spins face-on)
+function gearPts() {
+  const pts = [], teeth = 10, Ro = 1, Ri = 0.74, hub = 0.26, Nang = teeth * 10;
+  for (let i = 0; i < Nang; i++) { const a = i / Nang * 2 * Math.PI, top = (Math.floor(a / (2 * Math.PI) * teeth * 2) % 2 === 0) ? Ro : Ri; for (let rr = 0.5; rr <= top + 1e-9; rr += 0.085) pts.push([rr * Math.cos(a), rr * Math.sin(a), 0]); }
+  for (let i = 0; i < 44; i++) { const a = i / 44 * 2 * Math.PI; pts.push([hub * Math.cos(a), hub * Math.sin(a), 0]); }
+  for (let k = 0; k < 5; k++) { const a = k / 5 * 2 * Math.PI; for (let rr = hub; rr < 0.55; rr += 0.075) pts.push([rr * Math.cos(a), rr * Math.sin(a), 0]); }
+  return fitUnit(pts);
+}
+// lightning bolt — a thick zig-zag stroke (flat, spins face-on)
+function lightningPts() {
+  const spine = [[0.12, 1], [-0.28, 0.18], [0.18, 0.02], [-0.14, -1]], pts = [], width = 0.15;
+  for (let seg = 0; seg < spine.length - 1; seg++) {
+    const A = spine[seg], B = spine[seg + 1], dx = B[0] - A[0], dy = B[1] - A[1], len = Math.hypot(dx, dy), nx = -dy / len, ny = dx / len, steps = Math.ceil(len / 0.045);
+    for (let s = 0; s <= steps; s++) { const f = s / steps, cx = A[0] + dx * f, cy = A[1] + dy * f; for (let w = -1; w <= 1; w += 0.5) pts.push([cx + nx * width * w, cy + ny * width * w, 0]); }
+  }
+  return fitUnit(pts);
+}
+// mushroom — a domed cap over a cylindrical stem
+function mushroomPts() {
+  const pts = [], capR = 0.92, capY = 0.28;
+  for (let i = 0; i < 360; i++) { const d = fibDir(i, 360); if (d[1] < 0) continue; pts.push([d[0] * capR, capY + d[1] * 0.52, d[2] * capR]); }
+  for (let i = 0; i < 52; i++) { const a = i / 52 * 2 * Math.PI; pts.push([capR * Math.cos(a), capY, capR * Math.sin(a)]); }
+  for (let iy = 0; iy <= 16; iy++) { const y = capY - iy / 16 * 1.15; for (let a = 0; a < 12; a++) { const ang = a / 12 * 2 * Math.PI; pts.push([0.28 * Math.cos(ang), y, 0.28 * Math.sin(ang)]); } }
+  return fitUnit(pts);
+}
+// saturn — a planet with a tilted flat ring
+function saturnPts() {
+  const pts = [];
+  for (let i = 0; i < 440; i++) { const d = fibDir(i, 440); pts.push([d[0] * 0.62, d[1] * 0.62, d[2] * 0.62]); }
+  for (let i = 0; i < 230; i++) { const a = i / 230 * 2 * Math.PI; for (const rr of [0.95, 1.03, 1.11, 1.19]) pts.push([rr * Math.cos(a), 0, rr * Math.sin(a)]); }
+  return fitUnit(pts);
+}
+// gem — a brilliant-cut diamond: table + crown + pavilion point
+function gemPts() {
+  const pts = [], gR = 0.9, gY = 0.25;
+  for (let a = 0; a < 48; a++) {
+    const ang = a / 48 * 2 * Math.PI;
+    for (let s = 0; s <= 6; s++) { const f = s / 6, rr = gR + (0.45 - gR) * f, y = gY + (0.58 - gY) * f; pts.push([rr * Math.cos(ang), y, rr * Math.sin(ang)]); }
+    for (let s = 0; s <= 8; s++) { const f = s / 8, rr = gR * (1 - f), y = gY + (-0.95 - gY) * f; pts.push([rr * Math.cos(ang), y, rr * Math.sin(ang)]); }
+  }
+  for (let i = 0; i < 40; i++) { const d = fibDir(i, 40); pts.push([d[0] * 0.45, 0.58, d[2] * 0.45]); }
+  return fitUnit(pts);
+}
+
 // ---- gallery ---------------------------------------------------------------
 
 const SHAPES = [
@@ -184,7 +239,13 @@ const SHAPES = [
   { key: 'teardrop', label: 'Teardrop', sub: 'revolution', pts: teardropPts() },
   { key: 'snowflake', label: 'Snowflake', sub: '6-fold · flat', pts: snowflakePts(), flat: true },
   { key: 'skull', label: 'Skull', sub: 'lo-fi', pts: skullPts() },
-  { key: 'ghost', label: 'Ghost', sub: 'dome + skirt', pts: ghostPts() }
+  { key: 'ghost', label: 'Ghost', sub: 'dome + skirt', pts: ghostPts() },
+  { key: 'dna', label: 'DNA Helix', sub: 'double helix', pts: dnaPts() },
+  { key: 'gear', label: 'Gear', sub: 'cog · flat', pts: gearPts(), flat: true },
+  { key: 'lightning', label: 'Lightning', sub: 'bolt · flat', pts: lightningPts(), flat: true },
+  { key: 'mushroom', label: 'Mushroom', sub: 'cap + stem', pts: mushroomPts() },
+  { key: 'saturn', label: 'Saturn', sub: 'planet + ring', pts: saturnPts() },
+  { key: 'gem', label: 'Gem', sub: 'brilliant cut', pts: gemPts() }
 ];
 
 const grid = document.getElementById('grid'), body = document.body;
