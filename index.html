@@ -732,11 +732,27 @@ document.querySelectorAll('.deep-link').forEach(el => {
     (function loop() { draw(performance.now() / 1000); requestAnimationFrame(loop); })();
   })();
 
-  // --- Modes×Primitives preview: a solving Rubik's cube ----------------------
+  // --- Modes×Primitives preview: solving, cycling through primitives ---------
   (function () {
     const SIZE = 64, ctx = setup('p-prim', SIZE); if (!ctx) return;
     function hashD(a, b) { const h = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return h - Math.floor(h); }
-    const pts = (() => { const G = 6, out = [], lin = []; for (let i = 0; i < G; i++) lin.push(-1 + (2 * i) / (G - 1)); for (const s of [-1, 1]) for (const a of lin) for (const b of lin) { out.push([s, a, b]); out.push([a, s, b]); out.push([a, b, s]); } return out; })();
+    function normV(v) { const l = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) || 1e-6; return [v[0] / l, v[1] / l, v[2] / l]; }
+    function cross(a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; }
+    function sub(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
+    function dotP(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+    function fib(i, n) { const g = Math.PI * (3 - Math.sqrt(5)), y = 1 - (2 * (i + 0.5)) / n, r = Math.sqrt(1 - y * y), a = i * g; return [r * Math.cos(a), y, r * Math.sin(a)]; }
+    function convex(planes) { return (dir) => { const d = normV(dir); let t = Infinity; for (const pl of planes) { const dn = dotP(d, pl.n); if (dn > 1e-6) { const tt = pl.d / dn; if (tt < t) t = tt; } } return [d[0] * t, d[1] * t, d[2] * t]; }; }
+    function planesOf(verts, faces) { const P = []; for (const f of faces) { let n = normV(cross(sub(verts[f[1]], verts[f[0]]), sub(verts[f[2]], verts[f[0]]))); let d = dotP(n, verts[f[0]]); if (d < 0) { n = [-n[0], -n[1], -n[2]]; d = -d; } P.push({ n, d }); } return P; }
+    const warpLattice = (warp, n) => Array.from({ length: n }, (_, i) => warp(fib(i, n)));
+    const OCTA_V = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+    const OCTA_F = [[0, 2, 4], [0, 2, 5], [0, 3, 4], [0, 3, 5], [1, 2, 4], [1, 2, 5], [1, 3, 4], [1, 3, 5]];
+    const PH = 1.6180339887, ICO = [[0, 1, PH], [0, 1, -PH], [0, -1, PH], [0, -1, -PH], [1, PH, 0], [1, -PH, 0], [-1, PH, 0], [-1, -PH, 0], [PH, 0, 1], [PH, 0, -1], [-PH, 0, 1], [-PH, 0, -1]];
+    const cubePts = (() => { const G = 6, out = [], lin = []; for (let i = 0; i < G; i++) lin.push(-1 + (2 * i) / (G - 1)); for (const s of [-1, 1]) for (const a of lin) for (const b of lin) { out.push([s, a, b]); out.push([a, s, b]); out.push([a, b, s]); } return out; })();
+    const SHAPES = [
+      { pts: cubePts, Rf: 1 },
+      { pts: warpLattice(convex(planesOf(OCTA_V, OCTA_F)), 210), Rf: 1.7 },
+      { pts: warpLattice(convex(ICO.map((d) => ({ n: normV(d), d: 1 }))), 240), Rf: 1.35 }
+    ];
     const layers = [-1, -1 / 3, 1 / 3];
     function moves(count) { const mv = []; for (let i = 0; i < count; i++) { const axis = Math.min(2, Math.floor(hashD(i, 2.3) * 3)); const lo = layers[Math.min(2, Math.floor(hashD(i, 5.9) * 3))]; const dir = hashD(i, 7.7) < 0.5 ? 1 : -1; mv.push({ axis, lo, hi: lo + 2 / 3 + 1e-4, ang: (dir * Math.PI) / 2 }); } return mv; }
     function cycle(time, count, slot, rest) {
@@ -752,10 +768,11 @@ document.querySelectorAll('.deep-link').forEach(el => {
         if (m2.axis === 0) { const y2 = y * ca - z * sa; z = y * sa + z * ca; y = y2; } else if (m2.axis === 1) { const x2 = x * ca + z * sa; z = -x * sa + z * ca; x = x2; } else { const x2 = x * ca - y * sa; y = x * sa + y * ca; x = x2; } }
       return [x, y, z, inA];
     }
-    const MV = moves(12);
+    const MV = moves(12), PERIOD = 4.5;
     function draw(t) {
-      const R = (SIZE / 2) * 0.5, pt = makeProj(t * 0.5, 0.5 + 0.1 * Math.sin(t * 0.9), SIZE / 2, SIZE / 2, R), rs = radiusScale(SIZE, 0.6), sc = cycle(t, 12, 0.42, 1.2), dots = [];
-      for (const p of pts) { const [x, y, z, inA] = apply(p, MV, sc); const [px, py, zr] = pt(x, y, z); const depth = (zr + 1) / 2; dots.push({ x: px, y: py, z: zr, r: (0.45 + 1.4 * depth + (inA ? 0.35 : 0)) * rs, white: 0.6 - 0.48 * depth - (inA ? 0.14 : 0) }); }
+      const sh = SHAPES[Math.floor(t / PERIOD) % SHAPES.length];
+      const R = (SIZE / 2) * 0.5 * sh.Rf, pt = makeProj(t * 0.5, 0.5 + 0.1 * Math.sin(t * 0.9), SIZE / 2, SIZE / 2, R), rs = radiusScale(SIZE, 0.6), sc = cycle(t, 12, 0.42, 1.2), dots = [];
+      for (const p of sh.pts) { const [x, y, z, inA] = apply(p, MV, sc); const [px, py, zr] = pt(x, y, z); const depth = (zr + 1) / 2; dots.push({ x: px, y: py, z: zr, r: (0.45 + 1.4 * depth + (inA ? 0.35 : 0)) * rs, white: 0.6 - 0.48 * depth - (inA ? 0.14 : 0) }); }
       ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, SIZE, SIZE); paint(ctx, dots, true, 0.3);
     }
     if (reduced) { draw(0.9); return; }
