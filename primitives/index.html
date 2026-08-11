@@ -70,6 +70,7 @@
       <button data-prim="octa">octa</button>
       <button data-prim="dodeca">dodeca</button>
       <button data-prim="icosa">icosa</button>
+      <button data-prim="torus">torus</button>
       <button data-prim="mobius">möbius</button>
     </div>
   </div>
@@ -326,6 +327,28 @@ const MOB_PTS = (() => {
   return pts;
 })();
 
+// torus — a closed surface (the Möbius's untwisted cousin): direction maps to
+// (u = longitude around the ring, v = angle around the tube).
+const TOR_R = 1, TOR_r = 0.42;
+function torPoint(u, v) { const rr = TOR_R + TOR_r * Math.cos(v); return [rr * Math.cos(u), rr * Math.sin(u), TOR_r * Math.sin(v)]; }
+function torusWarp(dir) {
+  const d = normV(dir);
+  const u = Math.atan2(d[1], d[0]);
+  const lat = Math.asin(Math.max(-1, Math.min(1, d[2])));
+  return torPoint(u, lat * 2);
+}
+const TOR_GHOST = (() => {
+  const segs = [], N = 48;
+  for (const v of [0, Math.PI]) for (let i = 0; i < N; i++) segs.push([torPoint((i / N) * 2 * Math.PI, v), torPoint(((i + 1) / N) * 2 * Math.PI, v)]);
+  for (let t = 0; t < 6; t++) { const u = (t / 6) * 2 * Math.PI; for (let i = 0; i < 18; i++) segs.push([torPoint(u, (i / 18) * 2 * Math.PI), torPoint(u, ((i + 1) / 18) * 2 * Math.PI)]); }
+  return segs;
+})();
+const TOR_PTS = (() => {
+  const pts = [], N = 42, M = 12;
+  for (let i = 0; i < N; i++) { const u = (i / N) * 2 * Math.PI; for (let j = 0; j < M; j++) pts.push(torPoint(u, (j / M) * 2 * Math.PI)); }
+  return pts;
+})();
+
 const PRIMS = {
   cube: { key: 'cube', label: 'Cube', warp: cubeWarp, solvePts: cubePoints(7), ghost: CUBE_GHOST, Rf: 1 },
   pyramid: { key: 'pyramid', label: 'Pyramid', warp: PYR_WARP, solvePts: PYR_PTS, ghost: PYR_GHOST, Rf: 1.25 },
@@ -333,6 +356,7 @@ const PRIMS = {
   octa: { key: 'octa', label: 'Octahedron', warp: OCTA_WARP, solvePts: OCTA_PTS, ghost: OCTA_GHOST, Rf: 1.7 },
   dodeca: { key: 'dodeca', label: 'Dodecahedron', warp: DODECA_WARP, solvePts: DODECA_PTS, ghost: DODECA_GHOST, Rf: 1.35 },
   icosa: { key: 'icosa', label: 'Icosahedron', warp: ICOSA_WARP, solvePts: ICOSA_PTS, ghost: ICOSA_GHOST, Rf: 1.35 },
+  torus: { key: 'torus', label: 'Torus', warp: torusWarp, solvePts: TOR_PTS, ghost: TOR_GHOST, Rf: 1.2 },
   mobius: { key: 'mobius', label: 'Möbius', warp: mobiusWarp, solvePts: MOB_PTS, ghost: MOB_GHOST, Rf: 1.2 }
 };
 
