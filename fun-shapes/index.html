@@ -100,7 +100,8 @@ function paint(ctx, dots, dark, rMin) {
   for (const d of dots) { const alpha = d.a == null ? 1 : d.a; if (alpha < 0.02) continue; const w = Math.min(1, Math.max(0, d.white)), g = Math.round((dark ? 1 - w : w) * 255); ctx.fillStyle = `rgba(${g},${g},${g},${alpha})`; ctx.beginPath(); ctx.arc(d.x, d.y, Math.max(rMin, d.r), 0, Math.PI * 2); ctx.fill(); }
 }
 const radiusScale = (size, pow) => (size / 300) ** pow;
-function fitUnit(pts) { let m = 0; for (const p of pts) m = Math.max(m, Math.hypot(p[0], p[1], p[2])); return pts.map((p) => [p[0] / m, p[1] / m, p[2] / m]); }
+// scale to unit radius; a 4th element (highlight flag) is preserved
+function fitUnit(pts) { let m = 0; for (const p of pts) m = Math.max(m, Math.hypot(p[0], p[1], p[2])); return pts.map((p) => p.length > 3 ? [p[0] / m, p[1] / m, p[2] / m, p[3]] : [p[0] / m, p[1] / m, p[2] / m]); }
 function rotY(p, a) { const c = Math.cos(a), s = Math.sin(a); return [p[0] * c + p[2] * s, p[1], -p[0] * s + p[2] * c]; }
 function radialWarp(rFn) { return (dir) => { const d = normV(dir); const r = rFn(d); return [d[0] * r, d[1] * r, d[2] * r]; }; }
 function makeImplicitWarp(F) { return (dir) => { const d = normV(dir); let thi = 0.1, f = F(d[0] * thi, d[1] * thi, d[2] * thi), g = 0; while (f < 0 && thi < 5 && g < 50) { thi *= 1.35; f = F(d[0] * thi, d[1] * thi, d[2] * thi); g++; } let tlo = 0, th = thi; for (let i = 0; i < 20; i++) { const tm = (tlo + th) * 0.5; if (F(d[0] * tm, d[1] * tm, d[2] * tm) < 0) tlo = tm; else th = tm; } const t = (tlo + th) * 0.5; return [d[0] * t, d[1] * t, d[2] * t]; }; }
@@ -175,7 +176,7 @@ function dnaPts() {
   const RN = 15;
   for (let j = 0; j < RN; j++) {
     const s = (j + 0.5) / RN, th = s * turns * 2 * Math.PI, y = (s - 0.5) * H, a = [R * Math.cos(th), y, R * Math.sin(th)], b = [R * Math.cos(th + Math.PI), y, R * Math.sin(th + Math.PI)];
-    for (let r = 0; r <= 9; r++) { const f = r / 9, x = a[0] + (b[0] - a[0]) * f, yy = a[1] + (b[1] - a[1]) * f, z = a[2] + (b[2] - a[2]) * f; pts.push([x, yy, z], [x, yy + 0.028, z], [x, yy - 0.028, z]); }
+    for (let r = 0; r <= 9; r++) { const f = r / 9, x = a[0] + (b[0] - a[0]) * f, yy = a[1] + (b[1] - a[1]) * f, z = a[2] + (b[2] - a[2]) * f; pts.push([x, yy, z, 1], [x, yy + 0.028, z, 1], [x, yy - 0.028, z, 1]); } // hi = base-pair highlight
   }
   return fitUnit(pts);
 }
@@ -232,6 +233,52 @@ function catPts() {
   return fitUnit(pts);
 }
 
+// SONGS — the twin concrete containment domes of San Onofre, on a platform
+function songsPts() {
+  const pts = [];
+  const dome = (cx) => {
+    const R = 0.5, baseY = -0.15;
+    for (let i = 0; i < 240; i++) { const d = fibDir(i, 240); if (d[1] < 0) continue; pts.push([cx + d[0] * R, baseY + d[1] * R, d[2] * R]); }
+    for (let iy = 0; iy < 6; iy++) { const y = baseY - iy / 6 * 0.28; for (let a = 0; a < 30; a++) { const ang = a / 30 * 2 * Math.PI; pts.push([cx + R * Math.cos(ang), y, R * Math.sin(ang)]); } }
+  };
+  dome(-0.58); dome(0.58);
+  for (let ix = 0; ix <= 26; ix++) for (let iz = 0; iz <= 8; iz++) pts.push([-1.35 + ix / 26 * 2.7, -0.46, -0.5 + iz / 8]);
+  return fitUnit(pts);
+}
+// kettlebell — a heavy bell with an arched handle
+function kettlebellPts() {
+  const pts = [];
+  for (let i = 0; i < 440; i++) { const d = fibDir(i, 440); pts.push([d[0] * 0.6, -0.12 + d[1] * 0.55, d[2] * 0.6]); }
+  const cy = 0.34, Rh = 0.33, tr = 0.055;
+  for (let i = 0; i <= 44; i++) { const ang = Math.PI * (i / 44), x = Rh * Math.cos(ang), y = cy + Rh * Math.sin(ang); for (let m = 0; m < 4; m++) { const a2 = m / 4 * 2 * Math.PI; pts.push([x + tr * Math.cos(a2), y, tr * Math.sin(a2)]); } }
+  for (const sgn of [-1, 1]) for (let iy = 0; iy < 8; iy++) { const y = cy - iy / 8 * 0.32; for (let m = 0; m < 4; m++) { const a2 = m / 4 * 2 * Math.PI; pts.push([sgn * Rh + tr * Math.cos(a2), y, tr * Math.sin(a2)]); } }
+  return fitUnit(pts);
+}
+// stick — a slightly bent rod with a small twig
+function stickPts() {
+  const pts = [], N = 64;
+  for (let i = 0; i < N; i++) { const t = i / (N - 1), y = (t - 0.5) * 1.8, bend = 0.14 * Math.sin(t * 2.6), r = 0.055 * (1 - 0.4 * Math.abs(t - 0.5) * 2) + 0.02; for (let m = 0; m < 6; m++) { const a = m / 6 * 2 * Math.PI; pts.push([bend + r * Math.cos(a), y, r * Math.sin(a)]); } }
+  for (let i = 0; i < 14; i++) { const f = i / 14; for (let m = 0; m < 4; m++) { const a = m / 4 * 2 * Math.PI, rr = 0.032; pts.push([0.05 + f * 0.34 + rr * Math.cos(a), 0.2 + f * 0.26, rr * Math.sin(a)]); } }
+  return fitUnit(pts);
+}
+// banana — a curved, tapered tube (fatter middle, pointed ends)
+function bananaPts() {
+  const pts = [], N = 76;
+  for (let i = 0; i < N; i++) {
+    const t = i / (N - 1), ang = Math.PI * (0.2 + 0.6 * t), cx = Math.cos(ang) * 0.9, cy = Math.sin(ang) * 0.55 - 0.1, r = 0.14 * Math.sin(Math.PI * t) + 0.028;
+    const L = Math.hypot(cx, cy) || 1, nx = cx / L, ny = cy / L;
+    for (let m = 0; m < 8; m++) { const a = m / 8 * 2 * Math.PI, cs = Math.cos(a), sn = Math.sin(a); pts.push([cx + r * cs * nx, cy + r * cs * ny, r * sn]); }
+  }
+  return fitUnit(pts);
+}
+// pineapple — a crosshatched ellipsoid body with a spiky leaf crown
+function pineapplePts() {
+  const pts = [], rows = 15, cols = 16;
+  for (let iy = 0; iy < rows; iy++) { const v = iy / (rows - 1), y = -0.62 + v * 1.24, rr = 0.5 * Math.pow(Math.sin(Math.PI * Math.min(0.98, v * 0.92 + 0.05)), 0.7); for (let ix = 0; ix < cols; ix++) { const u = (ix + (iy % 2) * 0.5) / cols * 2 * Math.PI; pts.push([rr * Math.cos(u), y, rr * Math.sin(u)]); } }
+  for (let k = 0; k < 11; k++) { const ang = k / 11 * 2 * Math.PI, lean = 0.14; for (let s = 0; s < 9; s++) { const f = s / 9, r = 0.16 * (1 - f); pts.push([(r + lean * f) * Math.cos(ang), 0.62 + f * 0.55, (r + lean * f) * Math.sin(ang)]); } }
+  return fitUnit(pts);
+}
+
 // ---- shapes ----------------------------------------------------------------
 const SHAPES = [
   { key: 'heart', label: 'Heart', sub: 'implicit surface', pts: heartPts() },
@@ -256,22 +303,27 @@ const SHAPES = [
   { key: 'cloud', label: 'Cloud', sub: 'blob cluster', pts: cloudPts() },
   { key: 'umbrella', label: 'Umbrella', sub: 'canopy + handle', pts: umbrellaPts() },
   { key: 'rocket', label: 'Rocket', sub: 'body + fins', pts: rocketPts() },
-  { key: 'cat', label: 'Cat', sub: 'face · flat', pts: catPts(), flat: true }
+  { key: 'cat', label: 'Cat', sub: 'face · flat', pts: catPts(), flat: true },
+  { key: 'songs', label: 'SONGS Domes', sub: 'twin containment', pts: songsPts() },
+  { key: 'kettlebell', label: 'Kettlebell', sub: 'bell + handle', pts: kettlebellPts() },
+  { key: 'stick', label: 'Stick', sub: 'rod + twig', pts: stickPts() },
+  { key: 'banana', label: 'Banana', sub: 'curved taper', pts: bananaPts() },
+  { key: 'pineapple', label: 'Pineapple', sub: 'crosshatch + crown', pts: pineapplePts() }
 ];
 const SHAPE_BY_KEY = Object.fromEntries(SHAPES.map((s) => [s.key, s]));
 
 // ---- animation treatments (any point cloud) --------------------------------
 // each returns [{x,y,z,b}] in object space; the renderer projects + depth-shades.
 const TREATMENTS = [
-  { key: 'spin', label: 'Spin', fn: (base, t) => base.map((p) => { const q = rotY(p, t * 0.6); return { x: q[0], y: q[1], z: q[2], b: 1 }; }) },
-  { key: 'breathe', label: 'Breathe', fn: (base, t) => { const s = 1 + 0.17 * Math.sin(t * 2); return base.map((p) => { const q = rotY([p[0] * s, p[1] * s, p[2] * s], t * 0.3); return { x: q[0], y: q[1], z: q[2], b: 1 }; }); } },
-  { key: 'wave', label: 'Wave', fn: (base, t) => base.map((p) => { const d = 1 + 0.14 * Math.sin(3 * Math.atan2(p[2], p[0]) + t * 3 - p[1] * 2); const q = rotY([p[0] * d, p[1], p[2] * d], t * 0.3); return { x: q[0], y: q[1], z: q[2], b: 1 }; }) },
-  { key: 'twinkle', label: 'Twinkle', fn: (base, t) => base.map((p, i) => { const q = rotY(p, t * 0.35); return { x: q[0], y: q[1], z: q[2], b: 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(t * 4 + hsh(i) * 6.283)) }; }) },
-  { key: 'scatter', label: 'Scatter', fn: (base, t) => { const amt = 0.5 - 0.5 * Math.cos(t * 1.0); return base.map((p, i) => { const dx = hsh(i * 3 + 1) - 0.5, dy = hsh(i * 3 + 2) - 0.5, dz = hsh(i * 3 + 3) - 0.5, q = rotY([p[0] + dx * amt * 1.6, p[1] + dy * amt * 1.6, p[2] + dz * amt * 1.6], t * 0.2); return { x: q[0], y: q[1], z: q[2], b: 1 }; }); } },
-  { key: 'twist', label: 'Twist', fn: (base, t) => base.map((p) => { const q = rotY(p, t * 0.4 + p[1] * 1.6 * Math.sin(t * 0.7)); return { x: q[0], y: q[1], z: q[2], b: 1 }; }) },
-  { key: 'jelly', label: 'Jelly', fn: (base, t) => { const sy = 1 + 0.24 * Math.sin(t * 3), sx = 1 / Math.sqrt(sy); return base.map((p) => { const q = rotY([p[0] * sx, p[1] * sy, p[2] * sx], t * 0.3); return { x: q[0], y: q[1], z: q[2], b: 1 }; }); } },
-  { key: 'orbit', label: 'Orbit', fn: (base, t) => base.map((p, i) => { const h = hsh(i) * 6.283, q = rotY([p[0] + 0.07 * Math.sin(t * 2 + h), p[1] + 0.07 * Math.cos(t * 1.7 + h), p[2] + 0.07 * Math.sin(t * 2.3 + h)], t * 0.3); return { x: q[0], y: q[1], z: q[2], b: 1 }; }) },
-  { key: 'drawon', label: 'Draw-on', fn: (base, t) => { const frac = t * 0.28 - Math.floor(t * 0.28), k = Math.floor(base.length * frac), out = []; for (let i = 0; i < k; i++) { const q = rotY(base[i], t * 0.3); out.push({ x: q[0], y: q[1], z: q[2], b: i > k - 12 ? 1 : 0.85 }); } return out; } }
+  { key: 'spin', label: 'Spin', fn: (base, t) => base.map((p) => { const q = rotY(p, t * 0.6); return { x: q[0], y: q[1], z: q[2], b: 1, hi: p[3] }; }) },
+  { key: 'breathe', label: 'Breathe', fn: (base, t) => { const s = 1 + 0.17 * Math.sin(t * 2); return base.map((p) => { const q = rotY([p[0] * s, p[1] * s, p[2] * s], t * 0.3); return { x: q[0], y: q[1], z: q[2], b: 1, hi: p[3] }; }); } },
+  { key: 'wave', label: 'Wave', fn: (base, t) => base.map((p) => { const d = 1 + 0.14 * Math.sin(3 * Math.atan2(p[2], p[0]) + t * 3 - p[1] * 2); const q = rotY([p[0] * d, p[1], p[2] * d], t * 0.3); return { x: q[0], y: q[1], z: q[2], b: 1, hi: p[3] }; }) },
+  { key: 'twinkle', label: 'Twinkle', fn: (base, t) => base.map((p, i) => { const q = rotY(p, t * 0.35); return { x: q[0], y: q[1], z: q[2], b: 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(t * 4 + hsh(i) * 6.283)), hi: p[3] }; }) },
+  { key: 'scatter', label: 'Scatter', fn: (base, t) => { const amt = 0.5 - 0.5 * Math.cos(t * 1.0); return base.map((p, i) => { const dx = hsh(i * 3 + 1) - 0.5, dy = hsh(i * 3 + 2) - 0.5, dz = hsh(i * 3 + 3) - 0.5, q = rotY([p[0] + dx * amt * 1.6, p[1] + dy * amt * 1.6, p[2] + dz * amt * 1.6], t * 0.2); return { x: q[0], y: q[1], z: q[2], b: 1, hi: p[3] }; }); } },
+  { key: 'twist', label: 'Twist', fn: (base, t) => base.map((p) => { const q = rotY(p, t * 0.4 + p[1] * 1.6 * Math.sin(t * 0.7)); return { x: q[0], y: q[1], z: q[2], b: 1, hi: p[3] }; }) },
+  { key: 'jelly', label: 'Jelly', fn: (base, t) => { const sy = 1 + 0.24 * Math.sin(t * 3), sx = 1 / Math.sqrt(sy); return base.map((p) => { const q = rotY([p[0] * sx, p[1] * sy, p[2] * sx], t * 0.3); return { x: q[0], y: q[1], z: q[2], b: 1, hi: p[3] }; }); } },
+  { key: 'orbit', label: 'Orbit', fn: (base, t) => base.map((p, i) => { const h = hsh(i) * 6.283, q = rotY([p[0] + 0.07 * Math.sin(t * 2 + h), p[1] + 0.07 * Math.cos(t * 1.7 + h), p[2] + 0.07 * Math.sin(t * 2.3 + h)], t * 0.3); return { x: q[0], y: q[1], z: q[2], b: 1, hi: p[3] }; }) },
+  { key: 'drawon', label: 'Draw-on', fn: (base, t) => { const frac = t * 0.28 - Math.floor(t * 0.28), k = Math.floor(base.length * frac), out = []; for (let i = 0; i < k; i++) { const q = rotY(base[i], t * 0.3); out.push({ x: q[0], y: q[1], z: q[2], b: i > k - 12 ? 1 : 0.85, hi: base[i][3] }); } return out; } }
 ];
 
 // ---- rendering -------------------------------------------------------------
@@ -282,14 +334,19 @@ if (reduced) document.body.classList.add('reduced');
 
 function drawDots(ctx, size, dots, rMin) {
   const cx = size / 2, cy = size / 2, R = (size / 2) * 0.72, rs = radiusScale(size, 0.6), pt = makeProj(0, 0.42, cx, cy, R), out = [];
-  for (const d of dots) { const [px, py, z] = pt(d.x, d.y, d.z); const depth = (z + 1) / 2; out.push({ x: px, y: py, z, r: (d.r ? d.r : (0.5 + 1.5 * depth)) * rs, white: d.white != null ? d.white : 0.62 - 0.5 * depth, a: (d.a != null ? d.a : 0.45 + 0.55 * depth) * (d.b == null ? 1 : d.b) }); }
+  for (const d of dots) {
+    const [px, py, z] = pt(d.x, d.y, d.z), depth = (z + 1) / 2, bm = d.b == null ? 1 : d.b;
+    let white = d.white != null ? d.white : 0.62 - 0.5 * depth, r = (d.r ? d.r : (0.5 + 1.5 * depth)) * rs, a = (d.a != null ? d.a : 0.45 + 0.55 * depth) * bm;
+    if (d.hi) { white = currentDark ? 0.05 : 0.95; r = (0.75 + 1.5 * depth) * rs * 1.15; a = (0.72 + 0.28 * depth) * bm; }   // highlight: max-ink, heavier
+    out.push({ x: px, y: py, z, r, white, a });
+  }
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, size, size); paint(ctx, out, currentDark, rMin);
 }
 // gallery cell: rotate the resting shape (+ animated features)
 function drawGallery(cell, t) {
   const s = cell.shape, dots = [];
-  if (s.flat) { const a = t * 0.5, ca = Math.cos(a), sa = Math.sin(a); for (const p of s.pts) dots.push({ x: p[0] * ca - p[1] * sa, y: p[0] * sa + p[1] * ca, z: p[2] }); }
-  else { for (const p of s.pts) { const q = rotY(p, t * 0.45); dots.push({ x: q[0], y: q[1], z: q[2] }); } }
+  if (s.flat) { const a = t * 0.5, ca = Math.cos(a), sa = Math.sin(a); for (const p of s.pts) dots.push({ x: p[0] * ca - p[1] * sa, y: p[0] * sa + p[1] * ca, z: p[2], hi: p[3] }); }
+  else { for (const p of s.pts) { const q = rotY(p, t * 0.45); dots.push({ x: q[0], y: q[1], z: q[2], hi: p[3] }); } }
   if (s.features) for (const f of s.features(t)) dots.push(f);
   drawDots(cell.ctx, cell.size, dots, 0.3);
 }
