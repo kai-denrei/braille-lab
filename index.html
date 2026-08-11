@@ -311,6 +311,23 @@
     </div>
   </div>
 
+  <div class="card">
+    <div class="card-preview">
+      <pre id="p-braille" style="color:#dfe4ee;font-size:9px;line-height:1;margin:0;font-family:inherit;white-space:pre;"></pre>
+    </div>
+    <div class="card-body">
+      <div class="card-title">Braille Orbs</div>
+      <div class="card-desc">The nine Thinking Orbs re-rendered in the lab's native medium — the halftone engine thresholded onto a Unicode braille dot grid.</div>
+      <div class="card-tags">
+        <span class="tag">braille</span>
+        <span class="tag">orbs</span>
+        <span class="tag">rasterized</span>
+      </div>
+      <a class="card-link" href="braille-orbs/index.html">Open braille orbs &rarr;</a>
+      <span class="deep-link" data-path="braille-orbs/index.html">[deep link]</span>
+    </div>
+  </div>
+
 </div>
 
 <footer>braille lab — exploring the 256 states of ⠀ through ⣿ · <a href="about.html" style="color:#555;text-decoration:none;">about</a><div style="margin-top:8px;font-size:10px;color:#2a2a2a;letter-spacing:0.15em;">v0.1.0</div></footer>
@@ -778,6 +795,50 @@ document.querySelectorAll('.deep-link').forEach(el => {
     if (reduced) { draw(0.9); return; }
     (function loop() { draw(performance.now() / 1000); requestAnimationFrame(loop); })();
   })();
+})();
+</script>
+
+<script>
+// Braille Orbs homepage preview — a "breathing" ring drawn with the halftone
+// engine and thresholded to braille (MIT © Jakub Antalik; rasterizer original).
+(function () {
+  const pre = document.getElementById('p-braille'); if (!pre) return;
+  const COLS = 18, ROWS = 9, PW = COLS * 2, PH = ROWS * 4;
+  const off = document.createElement('canvas'); off.width = PW; off.height = PH;
+  const ctx = off.getContext('2d', { willReadFrequently: true });
+  function makeProj(yaw, tilt, cx, cy, scale) {
+    const st = Math.sin(tilt), ct = Math.cos(tilt), sy = Math.sin(yaw), cyw = Math.cos(yaw);
+    return (x, y, z) => { const x1 = x * cyw + z * sy, z1 = -x * sy + z * cyw; const y1 = y * ct - z1 * st, z2 = y * st + z1 * ct; return [cx + x1 * scale, cy - y1 * scale, z2]; };
+  }
+  function paint(dots) {
+    dots.sort((a, b) => a.z - b.z);
+    for (const d of dots) { const alpha = d.a == null ? 1 : d.a; if (alpha < 0.02) continue; const w = Math.min(1, Math.max(0, d.white)), g = Math.round((1 - w) * 255); ctx.fillStyle = `rgba(${g},${g},${g},${alpha})`; ctx.beginPath(); ctx.arc(d.x, d.y, Math.max(0.3, d.r), 0, Math.PI * 2); ctx.fill(); }
+  }
+  const rs = (PW / 300) ** 0.6;
+  // resolved ring-64 opts (baked)
+  const O = { lanes: 3, segs: 44, faceOn: 1, rBase: 1.0516, rDepth: 1.6252, spin: 0, bandMul: 3.627, wobMul: 0.368 }, SPEED = 3.24;
+  const DOTBITS = [[0x01, 0x08], [0x02, 0x10], [0x04, 0x20], [0x40, 0x80]];
+  function drawRing(t) {
+    const cx = PW / 2, cy = PH / 2, R = (Math.min(PW, PH) / 2) * 0.82, camTilt = 0.3, pt = makeProj(0, camTilt, cx, cy, R);
+    const ta = -camTilt, ux = 1, uy = 0, uz = 0, vx = 0, vy = Math.cos(ta), vz = 0, nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    const wobAmp = 0.23 * O.wobMul, baseR = 1 / (1 + 0.85 * wobAmp), lanes = Math.max(1, Math.round(O.lanes * O.bandMul)), dots = [];
+    for (let w = 0; w < lanes; w++) {
+      const laneOff = (w - (lanes - 1) / 2) * 0.075, edge = Math.abs(w - (lanes - 1) / 2) / Math.max(1, (lanes - 1) / 2);
+      for (let k = 0; k < O.segs; k++) {
+        const a = (k / O.segs) * 2 * Math.PI, wob = (0.16 * Math.sin(a * 3 - t * 1.7 + w * 0.22) + 0.07 * Math.sin(a * 5 + t * 1.1)) * O.wobMul, radial = 1 + wob;
+        const x = ux * Math.cos(a) + vx * Math.sin(a) + nx * laneOff, y = uy * Math.cos(a) + vy * Math.sin(a) + ny * laneOff, z = uz * Math.cos(a) + vz * Math.sin(a) + nz * laneOff, l = Math.sqrt(x * x + y * y + z * z), rr = baseR * radial;
+        const [px, py, zr] = pt((x / l) * rr, (y / l) * rr, (z / l) * rr), depth = (zr + 1) / 2;
+        dots.push({ x: px, y: py, z: zr, r: (O.rBase + O.rDepth * depth) * (1 - 0.25 * edge) * rs, white: 0.52 - 0.44 * depth + 0.18 * edge, a: 0.4 + 0.6 * depth });
+      }
+    }
+    ctx.clearRect(0, 0, PW, PH); paint(dots);
+    const data = ctx.getImageData(0, 0, PW, PH).data; let out = '';
+    for (let cy2 = 0; cy2 < ROWS; cy2++) { for (let cx2 = 0; cx2 < COLS; cx2++) { let mask = 0; for (let dy = 0; dy < 4; dy++) for (let dx = 0; dx < 2; dx++) { const p = ((cy2 * 4 + dy) * PW + (cx2 * 2 + dx)) * 4; if (data[p + 3] > 45 && (data[p] + data[p + 1] + data[p + 2]) / 3 > 65) mask |= DOTBITS[dy][dx]; } out += String.fromCharCode(0x2800 + mask); } out += '\n'; }
+    pre.textContent = out;
+  }
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduced) { drawRing(0.6); return; }
+  (function loop() { drawRing(performance.now() / 1000 * SPEED); requestAnimationFrame(loop); })();
 })();
 </script>
 
