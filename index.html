@@ -277,6 +277,40 @@
     </div>
   </div>
 
+  <div class="card">
+    <div class="card-preview">
+      <canvas id="p-shapes" style="width:64px;height:64px;display:block;"></canvas>
+    </div>
+    <div class="card-body">
+      <div class="card-title">Shapes</div>
+      <div class="card-desc">Dotted 3D solids on the same halftone engine — pyramid, double-inverted pyramid, dodecahedron, and a Möbius strip.</div>
+      <div class="card-tags">
+        <span class="tag">3d dots</span>
+        <span class="tag">solids</span>
+        <span class="tag">canvas</span>
+      </div>
+      <a class="card-link" href="shapes/index.html">Open shapes &rarr;</a>
+      <span class="deep-link" data-path="shapes/index.html">[deep link]</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-preview">
+      <canvas id="p-prim" style="width:64px;height:64px;display:block;"></canvas>
+    </div>
+    <div class="card-body">
+      <div class="card-title">Modes &times; Primitives</div>
+      <div class="card-desc">The nine thinking-orb motions re-pointed onto other shapes. Working cube, solving cube (a literal Rubik's cube), connecting cube, and more.</div>
+      <div class="card-tags">
+        <span class="tag">modes</span>
+        <span class="tag">cube</span>
+        <span class="tag">poc</span>
+      </div>
+      <a class="card-link" href="primitives/index.html">Open primitives &rarr;</a>
+      <span class="deep-link" data-path="primitives/index.html">[deep link]</span>
+    </div>
+  </div>
+
 </div>
 
 <footer>braille lab — exploring the 256 states of ⠀ through ⣿ · <a href="about.html" style="color:#555;text-decoration:none;">about</a><div style="margin-top:8px;font-size:10px;color:#2a2a2a;letter-spacing:0.15em;">v0.1.0</div></footer>
@@ -632,6 +666,101 @@ document.querySelectorAll('.deep-link').forEach(el => {
   if (reduced) { drawRing(0.6 / SPEED); return; }
   function loop() { drawRing(performance.now() / 1000 * SPEED); requestAnimationFrame(loop); }
   loop();
+})();
+</script>
+
+<script>
+// Homepage previews for the Shapes and Modes×Primitives tabs. Self-contained;
+// built on the Thinking Orbs halftone core (MIT © Jakub Antalik).
+(function () {
+  const DPR = Math.min(2, window.devicePixelRatio || 1);
+  function makeProj(yaw, tilt, cx, cy, scale) {
+    const st = Math.sin(tilt), ct = Math.cos(tilt), sy = Math.sin(yaw), cyw = Math.cos(yaw);
+    return (x, y, z) => {
+      const x1 = x * cyw + z * sy, z1 = -x * sy + z * cyw;
+      const y1 = y * ct - z1 * st, z2 = y * st + z1 * ct;
+      return [cx + x1 * scale, cy - y1 * scale, z2];
+    };
+  }
+  function paint(ctx, dots, dark, rMin) {
+    dots.sort((a, b) => a.z - b.z);
+    for (const d of dots) {
+      const alpha = d.a == null ? 1 : d.a; if (alpha < 0.02) continue;
+      const w = Math.min(1, Math.max(0, d.white)), g = Math.round((dark ? 1 - w : w) * 255);
+      ctx.fillStyle = `rgba(${g},${g},${g},${alpha})`;
+      ctx.beginPath(); ctx.arc(d.x, d.y, Math.max(rMin, d.r), 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  const radiusScale = (s, p) => (s / 300) ** p;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function setup(id, size) {
+    const canvas = document.getElementById(id); if (!canvas) return null;
+    canvas.width = Math.round(size * DPR); canvas.height = Math.round(size * DPR);
+    return canvas.getContext('2d');
+  }
+
+  // --- Shapes preview: a rotating dodecahedron -------------------------------
+  (function () {
+    const SIZE = 64, ctx = setup('p-shapes', SIZE); if (!ctx) return;
+    const P = 1.6180339887, I = 1 / P;
+    let raw = [
+      [1, 1, 1], [1, 1, -1], [1, -1, 1], [1, -1, -1], [-1, 1, 1], [-1, 1, -1], [-1, -1, 1], [-1, -1, -1],
+      [0, I, P], [0, I, -P], [0, -I, P], [0, -I, -P], [I, P, 0], [I, -P, 0], [-I, P, 0], [-I, -P, 0],
+      [P, 0, I], [P, 0, -I], [-P, 0, I], [-P, 0, -I]
+    ];
+    let m = 0; for (const v of raw) m = Math.max(m, Math.hypot(v[0], v[1], v[2]));
+    const verts = raw.map((v) => [v[0] / m, v[1] / m, v[2] / m]);
+    let dmin = Infinity;
+    for (let i = 0; i < verts.length; i++) for (let j = i + 1; j < verts.length; j++)
+      dmin = Math.min(dmin, Math.hypot(verts[i][0] - verts[j][0], verts[i][1] - verts[j][1], verts[i][2] - verts[j][2]));
+    const edges = [];
+    for (let i = 0; i < verts.length; i++) for (let j = i + 1; j < verts.length; j++)
+      if (Math.hypot(verts[i][0] - verts[j][0], verts[i][1] - verts[j][1], verts[i][2] - verts[j][2]) <= dmin * 1.08) edges.push([i, j]);
+    function draw(t) {
+      const R = (SIZE / 2) * 0.66, pt = makeProj(t * 0.5, 0.5 + 0.08 * Math.sin(t * 0.4), SIZE / 2, SIZE / 2, R), rs = radiusScale(SIZE, 0.6), dots = [];
+      for (const [i, j] of edges) for (let s = 0; s <= 8; s++) {
+        const f = s / 8, a = verts[i], b = verts[j];
+        const [px, py, z] = pt(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f);
+        const depth = (z + 1) / 2;
+        dots.push({ x: px, y: py, z, r: (0.5 + 1.4 * depth) * rs, white: 0.6 - 0.48 * depth, a: 0.45 + 0.55 * depth });
+      }
+      for (const v of verts) { const [px, py, z] = pt(v[0], v[1], v[2]); const depth = (z + 1) / 2; dots.push({ x: px, y: py, z, r: (1.3 + 1.5 * depth) * rs, white: 0.1 }); }
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, SIZE, SIZE); paint(ctx, dots, true, 0.3);
+    }
+    if (reduced) { draw(0.9); return; }
+    (function loop() { draw(performance.now() / 1000); requestAnimationFrame(loop); })();
+  })();
+
+  // --- Modes×Primitives preview: a solving Rubik's cube ----------------------
+  (function () {
+    const SIZE = 64, ctx = setup('p-prim', SIZE); if (!ctx) return;
+    function hashD(a, b) { const h = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return h - Math.floor(h); }
+    const pts = (() => { const G = 6, out = [], lin = []; for (let i = 0; i < G; i++) lin.push(-1 + (2 * i) / (G - 1)); for (const s of [-1, 1]) for (const a of lin) for (const b of lin) { out.push([s, a, b]); out.push([a, s, b]); out.push([a, b, s]); } return out; })();
+    const layers = [-1, -1 / 3, 1 / 3];
+    function moves(count) { const mv = []; for (let i = 0; i < count; i++) { const axis = Math.min(2, Math.floor(hashD(i, 2.3) * 3)); const lo = layers[Math.min(2, Math.floor(hashD(i, 5.9) * 3))]; const dir = hashD(i, 7.7) < 0.5 ? 1 : -1; mv.push({ axis, lo, hi: lo + 2 / 3 + 1e-4, ang: (dir * Math.PI) / 2 }); } return mv; }
+    function cycle(time, count, slot, rest) {
+      const cyc = 2 * count * slot + rest, tc = time % cyc, amount = new Array(count).fill(0); let active = -1;
+      if (tc < 2 * count * slot) { const s = Math.floor(tc / slot), p = (tc - s * slot) / slot, cl = Math.min(1, p / 0.7), ep = 1 - (1 - cl) ** 3;
+        if (s < count) { for (let i = 0; i < s; i++) amount[i] = 1; amount[s] = ep; active = s; } else { const u = 2 * count - 1 - s; for (let i = 0; i < u; i++) amount[i] = 1; amount[u] = 1 - ep; active = u; } }
+      return { amount, active };
+    }
+    function apply(p, mv, sc) {
+      let [x, y, z] = p; let inA = false;
+      for (let i = 0; i < mv.length; i++) { if (sc.amount[i] <= 0) continue; const m2 = mv[i], coord = m2.axis === 0 ? x : m2.axis === 1 ? y : z; if (coord < m2.lo || coord >= m2.hi) continue; if (i === sc.active) inA = true;
+        const a = m2.ang * sc.amount[i], ca = Math.cos(a), sa = Math.sin(a);
+        if (m2.axis === 0) { const y2 = y * ca - z * sa; z = y * sa + z * ca; y = y2; } else if (m2.axis === 1) { const x2 = x * ca + z * sa; z = -x * sa + z * ca; x = x2; } else { const x2 = x * ca - y * sa; y = x * sa + y * ca; x = x2; } }
+      return [x, y, z, inA];
+    }
+    const MV = moves(12);
+    function draw(t) {
+      const R = (SIZE / 2) * 0.5, pt = makeProj(t * 0.5, 0.5 + 0.1 * Math.sin(t * 0.9), SIZE / 2, SIZE / 2, R), rs = radiusScale(SIZE, 0.6), sc = cycle(t, 12, 0.42, 1.2), dots = [];
+      for (const p of pts) { const [x, y, z, inA] = apply(p, MV, sc); const [px, py, zr] = pt(x, y, z); const depth = (zr + 1) / 2; dots.push({ x: px, y: py, z: zr, r: (0.45 + 1.4 * depth + (inA ? 0.35 : 0)) * rs, white: 0.6 - 0.48 * depth - (inA ? 0.14 : 0) }); }
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, SIZE, SIZE); paint(ctx, dots, true, 0.3);
+    }
+    if (reduced) { draw(0.9); return; }
+    (function loop() { draw(performance.now() / 1000); requestAnimationFrame(loop); })();
+  })();
 })();
 </script>
 

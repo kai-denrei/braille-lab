@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modes × Primitives — Braille Lab</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0e0e1a; --fg: #e0e0e0; --muted: #666; --faint: #444;
+      --card: #13131f; --card-border: #1e1e2e; --card-hover: #333;
+      --preview: #0e0e18; --link: #60a5fa;
+      --seg-bg: #13131f; --seg-border: #1e1e2e; --seg-active: #23233a;
+    }
+    body[data-theme="light"] {
+      --bg: #f2f2ec; --fg: #1c1c1c; --muted: #8a8a82; --faint: #b0b0a8;
+      --card: #ffffff; --card-border: #e2e2d8; --card-hover: #c8c8bc;
+      --preview: #f7f7f1; --link: #2563eb;
+      --seg-bg: #ffffff; --seg-border: #e2e2d8; --seg-active: #e8e8de;
+    }
+    body { background: var(--bg); color: var(--fg); font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; min-height: 100vh; transition: background 0.25s, color 0.25s; }
+    header { padding: 3rem 2rem 1rem; text-align: center; }
+    .eyebrow { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+    .eyebrow a { color: var(--muted); text-decoration: none; }
+    .eyebrow a:hover { color: var(--fg); }
+    header h1 { font-size: 26px; font-weight: 500; margin: 0.75rem 0 0.5rem; letter-spacing: 0.02em; }
+    header p { font-size: 13px; color: var(--muted); max-width: 500px; margin: 0 auto; line-height: 1.6; }
+    .tagline { font-size: 12px; color: var(--muted); margin-top: 0.75rem; }
+    .tagline b { color: var(--fg); font-weight: 500; }
+    .controls { display: flex; gap: 1.5rem; justify-content: center; align-items: center; flex-wrap: wrap; padding: 1.5rem 2rem 0.5rem; }
+    .control { display: flex; align-items: center; gap: 0.6rem; }
+    .control-label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+    .seg { display: inline-flex; border: 1px solid var(--seg-border); border-radius: 6px; overflow: hidden; background: var(--seg-bg); }
+    .seg button { appearance: none; background: transparent; border: none; color: var(--muted); font-family: inherit; font-size: 12px; padding: 6px 14px; cursor: pointer; transition: background 0.15s, color 0.15s; }
+    .seg button + button { border-left: 1px solid var(--seg-border); }
+    .seg button.active { background: var(--seg-active); color: var(--fg); }
+    .seg button:hover:not(.active) { color: var(--fg); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1px; max-width: 780px; margin: 1.5rem auto 0; padding: 0 2rem; }
+    .card { background: var(--card); border: 1px solid var(--card-border); border-radius: 8px; overflow: hidden; transition: border-color 0.2s; display: flex; flex-direction: column; }
+    .card:hover { border-color: var(--card-hover); }
+    .card-preview { background: var(--preview); min-height: 160px; display: flex; align-items: center; justify-content: center; transition: background 0.25s; }
+    .card-preview canvas { display: block; }
+    .card-body { padding: 0.85rem 1rem 0.95rem; text-align: center; }
+    .card-title { font-size: 14px; font-weight: 500; color: var(--fg); }
+    .card-sub { font-size: 11px; color: var(--muted); margin-top: 0.25rem; }
+    .reduced-note { text-align: center; font-size: 11px; color: var(--muted); padding: 1rem 2rem 0; display: none; }
+    body.reduced .reduced-note { display: block; }
+    footer { text-align: center; padding: 3rem 2rem; font-size: 11px; color: var(--faint); line-height: 1.8; }
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--fg); }
+    @media (max-width: 640px) { header { padding: 2rem 1rem 1rem; } .grid { grid-template-columns: 1fr 1fr; padding: 0 1rem; } }
+  </style>
+</head>
+<body data-theme="dark">
+
+<header>
+  <div class="eyebrow"><a href="../index.html">&larr; braille lab</a></div>
+  <h1>Modes × Primitives</h1>
+  <p>The nine thinking-orb motions, re-pointed onto other primitive shapes. Each sphere-surface point is warped onto the primitive, so the same animation plays on a new body.</p>
+  <div class="tagline">All <b>nine</b> modes on a <b>cube</b> · solving = a literal Rubik's cube · pyramid &amp; more next</div>
+</header>
+
+<div class="controls">
+  <div class="control">
+    <span class="control-label">Theme</span>
+    <div class="seg" id="seg-theme">
+      <button data-theme="dark" class="active">dark</button>
+      <button data-theme="light">light</button>
+    </div>
+  </div>
+</div>
+
+<div class="reduced-note">Reduced-motion is on — a single static frame is shown.</div>
+
+<div class="grid" id="grid"></div>
+
+<footer>
+  Built on the <a href="../thinking-orbs/index.html">Thinking Orbs</a> halftone engine (MIT © Jakub Antalik) · <code>warp()</code> + primitive geometry original to Braille Lab.
+</footer>
+
+<script>
+// =============================================================================
+// Modes × Primitives — the nine Thinking Orbs motions re-pointed onto a cube.
+// Core primitives (projection, z-sorted painter, noise, fib lattice, rubik
+// solve cycle, morph) are from the ported Thinking Orbs engine
+// (MIT © 2026 Jakub Antalik). The warp() surface remap and cube geometry are
+// original to Braille Lab. Each mode computes its motion in unit sphere space,
+// then warps every surface point onto the cube before projecting.
+// =============================================================================
+
+// ---- core primitives (Thinking Orbs engine) --------------------------------
+
+function lerp(a, b, f) { return a + (b - a) * f; }
+function frac(x) { return x - Math.floor(x); }
+function hashD(a, b) { const h = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return h - Math.floor(h); }
+function vnoise(x, y) {
+  const xi = Math.floor(x), yi = Math.floor(y);
+  let fx = x - xi, fy = y - yi; fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+  const a = hashD(xi, yi), b = hashD(xi + 1, yi), c = hashD(xi, yi + 1), d = hashD(xi + 1, yi + 1);
+  return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
+}
+function fibDir(i, n) {
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  const y = 1 - (2 * (i + 0.5)) / n, rad = Math.sqrt(1 - y * y), a = i * golden;
+  return [rad * Math.cos(a), y, rad * Math.sin(a)];
+}
+function angleDelta(a, b) { return Math.atan2(Math.sin(a - b), Math.cos(a - b)); }
+function makeProj(yaw, tilt, cx, cy, scale) {
+  const st = Math.sin(tilt), ct = Math.cos(tilt), sy = Math.sin(yaw), cyw = Math.cos(yaw);
+  return (x, y, z) => {
+    const x1 = x * cyw + z * sy, z1 = -x * sy + z * cyw;
+    const y1 = y * ct - z1 * st, z2 = y * st + z1 * ct;
+    return [cx + x1 * scale, cy - y1 * scale, z2];
+  };
+}
+function paint(ctx, dots, dark, rMin = 0.3) {
+  dots.sort((a, b) => a.z - b.z);
+  for (const d of dots) {
+    const alpha = d.a == null ? 1 : d.a; if (alpha < 0.02) continue;
+    const w = Math.min(1, Math.max(0, d.white)), g = Math.round((dark ? 1 - w : w) * 255);
+    ctx.fillStyle = `rgba(${g},${g},${g},${alpha})`;
+    ctx.beginPath(); ctx.arc(d.x, d.y, Math.max(rMin, d.r), 0, Math.PI * 2); ctx.fill();
+  }
+}
+function paintLines(ctx, lines, dark) {
+  for (const l of lines) {
+    const alpha = l.a == null ? 1 : l.a; if (alpha < 0.02) continue;
+    const w = Math.min(1, Math.max(0, l.white)), g = Math.round((dark ? 1 - w : w) * 255);
+    ctx.strokeStyle = `rgba(${g},${g},${g},${alpha})`; ctx.lineWidth = l.w;
+    ctx.beginPath(); ctx.moveTo(l.x1, l.y1); ctx.lineTo(l.x2, l.y2); ctx.stroke();
+  }
+}
+const radiusScale = (size, pow) => (size / 300) ** pow;
+
+// ---- the warp: sphere point → cube surface ---------------------------------
+
+function normalize(v) { const l = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) || 1e-6; return [v[0] / l, v[1] / l, v[2] / l]; }
+
+/** Project a direction onto the surface of [-1,1]^3 (max component = 1). */
+function cubeWarp(v) {
+  const m = Math.max(Math.abs(v[0]), Math.abs(v[1]), Math.abs(v[2])) || 1e-6;
+  return [v[0] / m, v[1] / m, v[2] / m];
+}
+/** Warp a point onto the cube while preserving its radius (undulation-safe). */
+function toCube(P) {
+  const l = Math.sqrt(P[0] * P[0] + P[1] * P[1] + P[2] * P[2]) || 1e-6;
+  const c = cubeWarp([P[0] / l, P[1] / l, P[2] / l]);
+  return [c[0] * l, c[1] * l, c[2] * l];
+}
+
+// ---- rubik solve cycle (Thinking Orbs engine) ------------------------------
+
+function solveCycle(time, count, slotDur, rest) {
+  const cyc = 2 * count * slotDur + rest, tc = time % cyc;
+  const amount = new Array(count).fill(0); let active = -1;
+  if (tc < 2 * count * slotDur) {
+    const slot = Math.floor(tc / slotDur), p = (tc - slot * slotDur) / slotDur;
+    const cl = Math.min(1, p / 0.7), ep = 1 - (1 - cl) ** 3;
+    if (slot < count) { for (let i = 0; i < slot; i++) amount[i] = 1; amount[slot] = ep; active = slot; }
+    else { const u = 2 * count - 1 - slot; for (let i = 0; i < u; i++) amount[i] = 1; amount[u] = 1 - ep; active = u; }
+  }
+  return { amount, active };
+}
+function applyMoves(pt3, moves, sc) {
+  let [x, y, z] = pt3; let inActive = false;
+  for (let i = 0; i < moves.length; i++) {
+    if (sc.amount[i] <= 0) continue;
+    const mv = moves[i], coord = mv.axis === 0 ? x : mv.axis === 1 ? y : z;
+    if (coord < mv.lo || coord >= mv.hi) continue;
+    if (i === sc.active) inActive = true;
+    const a = mv.ang * sc.amount[i], ca = Math.cos(a), sa = Math.sin(a);
+    if (mv.axis === 0) { const y2 = y * ca - z * sa; z = y * sa + z * ca; y = y2; }
+    else if (mv.axis === 1) { const x2 = x * ca + z * sa; z = -x * sa + z * ca; x = x2; }
+    else { const x2 = x * ca - y * sa; y = x * sa + y * ca; x = x2; }
+  }
+  return [x, y, z, inActive];
+}
+function makeCubeMoves(count) {
+  const layers = [-1, -1 / 3, 1 / 3], moves = [];
+  for (let i = 0; i < count; i++) {
+    const axis = Math.min(2, Math.floor(hashD(i, 2.3) * 3));
+    const lo = layers[Math.min(2, Math.floor(hashD(i, 5.9) * 3))];
+    const dir = hashD(i, 7.7) < 0.5 ? 1 : -1;
+    moves.push({ axis, lo, hi: lo + 2 / 3 + 1e-4, ang: (dir * Math.PI) / 2 });
+  }
+  return moves;
+}
+function cubePoints(G) {
+  const pts = [], lin = [];
+  for (let i = 0; i < G; i++) lin.push(-1 + (2 * i) / (G - 1));
+  for (const s of [-1, 1]) for (const a of lin) for (const b of lin) {
+    pts.push([s, a, b]); pts.push([a, s, b]); pts.push([a, b, s]);
+  }
+  return pts;
+}
+const CUBE_CORNERS = (() => { const c = []; for (const x of [-1, 1]) for (const y of [-1, 1]) for (const z of [-1, 1]) c.push([x, y, z]); return c; })();
+const CUBE_EDGES = (() => {
+  const e = [];
+  for (let i = 0; i < 8; i++) for (let j = i + 1; j < 8; j++) {
+    let d = 0; for (let k = 0; k < 3; k++) if (CUBE_CORNERS[i][k] !== CUBE_CORNERS[j][k]) d++;
+    if (d === 1) e.push([i, j]);
+  }
+  return e;
+})();
+
+// ---- morph (Thinking Orbs engine) — primitive-agnostic 2D outline ----------
+
+function smoothE(x) { return x * x * (3 - 2 * x); }
+function polyPath(verts) {
+  const V = verts.length, L = []; let total = 0;
+  for (let i = 0; i < V; i++) { const a = verts[i], b = verts[(i + 1) % V]; const l = Math.hypot(b[0] - a[0], b[1] - a[1]); L.push(l); total += l; }
+  return (f) => {
+    let target = f * total, i = 0;
+    while (target > L[i] && i < V - 1) { target -= L[i]; i++; }
+    const a = verts[i], b = verts[(i + 1) % V], ff = L[i] ? Math.min(1, target / L[i]) : 0;
+    return [a[0] + (b[0] - a[0]) * ff, a[1] + (b[1] - a[1]) * ff];
+  };
+}
+const M_CIRCLE = (f) => { const a = -Math.PI / 2 + f * 2 * Math.PI; return [Math.cos(a) * 0.24, Math.sin(a) * 0.24]; };
+const M_TRIANGLE = polyPath([[0.0, -0.26], [0.24, 0.16], [-0.24, 0.16]]);
+const M_SQUARE = polyPath([[0, -0.2], [0.2, -0.2], [0.2, 0.2], [-0.2, 0.2], [-0.2, -0.2]]);
+const M_CYCLE = [M_CIRCLE, M_TRIANGLE, M_SQUARE];
+const M_HOLD = 1.4, M_MORPH = 0.9, M_SEG = M_HOLD + M_MORPH;
+
+// ---- the nine modes, on a cube ---------------------------------------------
+
+// working — orbiting particles on cube-warped rings + a ghost cube
+function drawWorkingCube(ctx, size, t, dark) {
+  const cx = size / 2, cy = size / 2, R = (size / 2) * 0.46;
+  const pt = makeProj(t * 0.5, 0.42 + 0.05 * Math.sin(t * 0.4), cx, cy, R);
+  const rs = radiusScale(size, 0.6);
+  const dots = [];
+  for (const [i, j] of CUBE_EDGES) {
+    const a = CUBE_CORNERS[i], b = CUBE_CORNERS[j];
+    for (let s = 0; s <= 8; s++) {
+      const f = s / 8;
+      const [px, py, z] = pt(lerp(a[0], b[0], f), lerp(a[1], b[1], f), lerp(a[2], b[2], f));
+      const depth = (z + 1) / 2;
+      dots.push({ x: px, y: py, z, r: 0.7 * rs, white: 0.78, a: 0.1 + 0.2 * depth });
+    }
+  }
+  const orbitN = 10, particles = 3;
+  for (let orb = 0; orb < orbitN; orb++) {
+    const h1 = hashD(orb, 1.7), h2 = hashD(orb, 5.2), h3 = hashD(orb, 8.9);
+    const th = h1 * 2 * Math.PI, phi = Math.acos(2 * h2 - 1);
+    const nx = Math.sin(phi) * Math.cos(th), ny = Math.cos(phi), nz = Math.sin(phi) * Math.sin(th);
+    let ux = -ny, uy = nx; const uz = 0;
+    const ul = Math.max(1e-6, Math.sqrt(ux * ux + uy * uy)); ux /= ul; uy /= ul;
+    const vx = ny * uz - nz * uy, vy = nz * ux - nx * uz, vz = nx * uy - ny * ux;
+    const speed = (0.25 + 0.55 * h3) * (h3 > 0.5 ? 1 : -1);
+    for (let k = 0; k < 48; k++) {
+      const a = (k / 48) * 2 * Math.PI;
+      const c = cubeWarp([ux * Math.cos(a) + vx * Math.sin(a), uy * Math.cos(a) + vy * Math.sin(a), uz * Math.cos(a) + vz * Math.sin(a)]);
+      const [px, py, z] = pt(c[0], c[1], c[2]); const depth = (z + 1) / 2;
+      dots.push({ x: px, y: py, z, r: 0.8 * rs, white: 0.72, a: 0.4 * (0.35 + 0.65 * depth) });
+    }
+    for (let m = 0; m < particles; m++) {
+      const a = t * speed + (m / particles) * 2 * Math.PI + h2 * 6;
+      const c = cubeWarp([ux * Math.cos(a) + vx * Math.sin(a), uy * Math.cos(a) + vy * Math.sin(a), uz * Math.cos(a) + vz * Math.sin(a)]);
+      const [px, py, z] = pt(c[0], c[1], c[2]); const depth = (z + 1) / 2;
+      dots.push({ x: px, y: py, z, r: (1.1 + 1.5 * depth) * rs, white: 0.3 - 0.22 * depth });
+    }
+  }
+  paint(ctx, dots, dark, 0.3);
+}
+
+// searching — lat/long lattice on the cube, a scan meridian sweeps
+function drawSearchingCube(ctx, size, t, dark) {
+  const cx = size / 2, cy = size / 2, R = (size / 2) * 0.5, spin = 0.5;
+  const pt = makeProj(t * spin, 0.4 + 0.06 * Math.sin(t * 0.35), cx, cy, R);
+  const scan = t * (spin + (1.7 - spin) * 4.08);
+  const rs = radiusScale(size, 0.6), dimBase = 0.45;
+  const dots = [], latRings = 14, lonDensity = 32;
+  for (let li = 0; li <= latRings; li++) {
+    const lat = -Math.PI / 2 + (li / latRings) * Math.PI;
+    const cosLat = Math.cos(lat), sinLat = Math.sin(lat);
+    const lonCount = Math.max(1, Math.round(Math.abs(cosLat) * lonDensity));
+    for (let lj = 0; lj < lonCount; lj++) {
+      const lon = (lj / lonCount) * 2 * Math.PI;
+      const c = cubeWarp([cosLat * Math.cos(lon), sinLat, cosLat * Math.sin(lon)]);
+      const [px, py, z] = pt(c[0], c[1], c[2]); const depth = (z + 1) / 2;
+      const d = angleDelta(lon + t * spin, scan);
+      const boost = Math.exp(-(d * d) / 0.18) * Math.max(0, z);
+      dots.push({ x: px, y: py, z, r: (0.55 + 1.5 * depth + 1.0 * boost) * rs, white: 0.62 - 0.5 * depth, a: dimBase + (1 - dimBase) * Math.min(1, boost) });
+    }
+  }
+  paint(ctx, dots, dark, 0.3);
+}
+
+// solving — rubik band-turns on a real cube point-set
+const SOLVE_PTS = cubePoints(7);
+function drawSolvingCube(ctx, size, t, dark) {
+  const cx = size / 2, cy = size / 2, R = (size / 2) * 0.5;
+  const pt = makeProj(t * 0.5, 0.5 + 0.1 * Math.sin(t * 0.9), cx, cy, R);
+  const rs = radiusScale(size, 0.6);
+  const moveCount = 12, moves = makeCubeMoves(moveCount), sc = solveCycle(t, moveCount, 0.42, 1.2);
+  const dots = [];
+  for (const p of SOLVE_PTS) {
+    const [x, y, z, inA] = applyMoves(p, moves, sc);
+    const [px, py, zr] = pt(x, y, z); const depth = (zr + 1) / 2;
+    dots.push({ x: px, y: py, z: zr, r: (0.5 + 1.5 * depth + (inA ? 0.4 : 0)) * rs, white: 0.6 - 0.48 * depth - (inA ? 0.14 : 0) });
+  }
+  paint(ctx, dots, dark, 0.3);
+}
+
+// listening — a waveform undulates the cube's radius
+function drawListeningCube(ctx, size, t, dark) {
+  const cx = size / 2, cy = size / 2, R = (size / 2) * 0.52;
+  const pt = makeProj(t * 0.18, 0.4, cx, cy, R);
+  const rs = radiusScale(size, 0.6);
+  const dots = [], rings = 14, lonDensity = 32;
+  for (let ri = 0; ri <= rings; ri++) {
+    const lat = -Math.PI / 2 + (ri / rings) * Math.PI;
+    const cosLat = Math.cos(lat), sinLat = Math.sin(lat);
+    const w = 0.62 * Math.sin(t * 2.1 - ri * 0.52) + 0.38 * Math.sin(t * 1.27 + ri * 0.83);
+    const rr = 0.9 + 0.12 * w;
+    const lonCount = Math.max(1, Math.round(Math.abs(cosLat) * lonDensity));
+    for (let lj = 0; lj < lonCount; lj++) {
+      const lon = (lj / lonCount) * 2 * Math.PI;
+      const c = cubeWarp([cosLat * Math.cos(lon), sinLat, cosLat * Math.sin(lon)]);
+      const [px, py, z] = pt(c[0] * rr, c[1] * rr, c[2] * rr); const depth = (z + 1) / 2, crest = Math.max(0, w);
+      dots.push({ x: px, y: py, z, r: (0.55 + 1.5 * depth) * (1 + 0.4 * crest) * rs, white: 0.66 - 0.56 * depth - 0.1 * crest });
+    }
+  }
+  paint(ctx, dots, dark, 0.3);
+}
+
+// connecting — a constellation wired over the cube
+function drawConnectingCube(ctx, size, t, dark) {
+  const cx = size / 2, cy = size / 2, R = (size / 2) * 0.52;
+  const pt = makeProj(t * 0.12, 0.35, cx, cy, R);
+  const rs = radiusScale(size, 0.6);
+  const nodeN = 26, thr = 0.95, nodeR = 1.2, nodeRDepth = 1.6;
+  const nodes = [];
+  for (let i = 0; i < nodeN; i++) {
+    const d = fibDir(i, nodeN);
+    const x = d[0] + 0.25 * (vnoise(i * 0.31 + 9, t * 0.24) - 0.5) * 2;
+    const y = d[1] + 0.25 * (vnoise(i * 0.53 + 27, t * 0.21) - 0.5) * 2;
+    const z = d[2] + 0.25 * (vnoise(i * 0.77 + 55, t * 0.27) - 0.5) * 2;
+    nodes.push(cubeWarp(normalize([x, y, z])));
+  }
+  const lines = [], dots = [];
+  for (let i = 0; i < nodeN; i++) for (let j = i + 1; j < nodeN; j++) {
+    const dx = nodes[i][0] - nodes[j][0], dy = nodes[i][1] - nodes[j][1], dz = nodes[i][2] - nodes[j][2];
+    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz); if (dist >= thr) continue;
+    const [x1, y1, z1] = pt(nodes[i][0], nodes[i][1], nodes[i][2]);
+    const [x2, y2, z2] = pt(nodes[j][0], nodes[j][1], nodes[j][2]);
+    const depth = ((z1 + z2) / 2 + 1) / 2;
+    lines.push({ x1, y1, x2, y2, white: 0.42, a: (1 - dist / thr) * (0.3 + 0.55 * depth), w: Math.max(0.6, 0.8 * rs) });
+  }
+  for (let i = 0; i < nodeN; i++) {
+    const [px, py, z] = pt(nodes[i][0], nodes[i][1], nodes[i][2]); const depth = (z + 1) / 2;
+    const pulse = 1 + 0.25 * Math.sin(t * 1.4 + i * 2.7);
+    dots.push({ x: px, y: py, z, r: (nodeR + nodeRDepth * depth) * pulse * rs, white: 0.55 - 0.45 * depth });
+  }
+  for (let s = 0; s < 5; s++) {
+    const seg = Math.floor(t * 0.55 + s * 7.31);
+    const a = Math.floor(hashD(seg, s * 3.1 + 1.7) * nodeN), b = Math.floor(hashD(seg, s * 5.7 + 4.2) * nodeN);
+    if (a === b) continue;
+    const f = frac(t * 0.55 + s * 7.31);
+    const c = cubeWarp(normalize([lerp(nodes[a][0], nodes[b][0], f), lerp(nodes[a][1], nodes[b][1], f), lerp(nodes[a][2], nodes[b][2], f)]));
+    const [px, py, zr] = pt(c[0], c[1], c[2]); const depth = (zr + 1) / 2;
+    dots.push({ x: px, y: py, z: zr, r: (nodeR * 1.5 + nodeRDepth * depth) * rs, white: 0.05, a: 0.5 + 0.5 * depth });
+  }
+  paintLines(ctx, lines, dark); paint(ctx, dots, dark, 0.3);
+}
+
+// weaving — three strands plait around the cube
+function drawWeavingCube(ctx, size, t, dark) {
+  const cx = size / 2, cy = size / 2, R = (size / 2) * 0.5;
+  const pt = makeProj(t * 0.4, 0.32, cx, cy, R);
+  const rs = radiusScale(size, 0.6);
+  const dots = [], ghostN = 72;
+  for (let i = 0; i < ghostN; i++) {
+    const c = cubeWarp(fibDir(i, ghostN));
+    const [px, py, z] = pt(c[0], c[1], c[2]); const depth = (z + 1) / 2;
+    dots.push({ x: px, y: py, z, r: 0.7 * rs, white: 0.78, a: 0.1 + 0.22 * depth });
+  }
+  const strandN = 28, turns = 3;
+  for (let s = 0; s < 3; s++) {
+    const phase = (s / 3) * 2 * Math.PI;
+    for (let i = 0; i < strandN; i++) {
+      const u = (frac(i / strandN + t * 0.045) * 2 - 1) * 0.96;
+      const surf = Math.sqrt(Math.max(0, 1 - u * u));
+      const endFade = Math.min(1, (1 - Math.abs(u)) / 0.1);
+      const a = u * Math.PI * turns + phase;
+      const weave = 1 + 0.075 * Math.sin(u * Math.PI * turns * 2 + phase * 2 + t * 0.8);
+      const c = cubeWarp([Math.cos(a) * surf, u, Math.sin(a) * surf]);
+      const [px, py, z] = pt(c[0] * weave, c[1] * weave, c[2] * weave); const depth = (z + 1) / 2;
+      dots.push({ x: px, y: py, z, r: (0.9 + 1.7 * depth) * rs, white: 0.55 - 0.45 * depth, a: endFade * (0.45 + 0.55 * depth) });
+    }
+  }
+  paint(ctx, dots, dark, 0.3);
+}
+
+// composing — an undulating multi-band sash wrapping the cube
+function drawComposingCube(ctx, size, t, dark) {
+  const cx = size / 2, cy = size / 2, R = (size / 2) * 0.5;
+  const pt = makeProj(t * 0.18, 0.32, cx, cy, R);
+  const rs = radiusScale(size, 0.6);
+  const dots = [], ghostN = 72;
+  for (let i = 0; i < ghostN; i++) {
+    const c = cubeWarp(fibDir(i, ghostN));
+    const [px, py, z] = pt(c[0], c[1], c[2]); const depth = (z + 1) / 2;
+    dots.push({ x: px, y: py, z, r: 0.7 * rs, white: 0.78, a: 0.08 + 0.2 * depth });
+  }
+  const ya = 0, ta = 0.55;
+  const ux = Math.cos(ya), uy = 0, uz = Math.sin(ya);
+  const vx = -uz * Math.sin(ta), vy = Math.cos(ta), vz = ux * Math.sin(ta);
+  const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+  const lanes = 12, segs = 46;
+  for (let w = 0; w < lanes; w++) {
+    const laneOff = (w - (lanes - 1) / 2) * 0.075;
+    const edge = Math.abs(w - (lanes - 1) / 2) / Math.max(1, (lanes - 1) / 2);
+    for (let k = 0; k < segs; k++) {
+      const a = (k / segs) * 2 * Math.PI;
+      const wob = 0.16 * Math.sin(a * 3 - t * 1.7 + w * 0.22) + 0.07 * Math.sin(a * 5 + t * 1.1);
+      const off = laneOff + wob;
+      const x = ux * Math.cos(a) + vx * Math.sin(a) + nx * off;
+      const y = uy * Math.cos(a) + vy * Math.sin(a) + ny * off;
+      const z = uz * Math.cos(a) + vz * Math.sin(a) + nz * off;
+      const c = cubeWarp([x, y, z]);
+      const [px, py, zr] = pt(c[0], c[1], c[2]); const depth = (zr + 1) / 2;
+      dots.push({ x: px, y: py, z: zr, r: (0.75 + 1.6 * depth) * (1 - 0.25 * edge) * rs, white: 0.52 - 0.44 * depth + 0.18 * edge, a: 0.4 + 0.6 * depth });
+    }
+  }
+  paint(ctx, dots, dark, 0.3);
+}
+
+// breathing — a face-on square ring slowly swelling and pinching
+function drawBreathingCube(ctx, size, t, dark) {
+  const cx = size / 2, cy = size / 2, R = (size / 2) * 0.5, camTilt = 0.3;
+  const pt = makeProj(0, camTilt, cx, cy, R);
+  const rs = radiusScale(size, 0.6);
+  const dots = [], ta = -camTilt, ya = 0;
+  const ux = Math.cos(ya), uy = 0, uz = Math.sin(ya);
+  const vx = -uz * Math.sin(ta), vy = Math.cos(ta), vz = ux * Math.sin(ta);
+  const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+  const wobMul = 0.5, lanes = 11, segs = 46;
+  const wobAmp = 0.23 * wobMul, baseR = 1 / (1 + 0.85 * wobAmp);
+  for (let w = 0; w < lanes; w++) {
+    const laneOff = (w - (lanes - 1) / 2) * 0.075;
+    const edge = Math.abs(w - (lanes - 1) / 2) / Math.max(1, (lanes - 1) / 2);
+    for (let k = 0; k < segs; k++) {
+      const a = (k / segs) * 2 * Math.PI;
+      const wob = (0.16 * Math.sin(a * 3 - t * 1.7 + w * 0.22) + 0.07 * Math.sin(a * 5 + t * 1.1)) * wobMul;
+      const radial = 1 + wob, off = laneOff;
+      const x = ux * Math.cos(a) + vx * Math.sin(a) + nx * off;
+      const y = uy * Math.cos(a) + vy * Math.sin(a) + ny * off;
+      const z = uz * Math.cos(a) + vz * Math.sin(a) + nz * off;
+      const c = cubeWarp([x, y, z]); const rr = baseR * radial;
+      const [px, py, zr] = pt(c[0] * rr, c[1] * rr, c[2] * rr); const depth = (zr + 1) / 2;
+      dots.push({ x: px, y: py, z: zr, r: (0.8 + 1.5 * depth) * (1 - 0.25 * edge) * rs, white: 0.52 - 0.44 * depth + 0.18 * edge, a: 0.4 + 0.6 * depth });
+    }
+  }
+  paint(ctx, dots, dark, 0.3);
+}
+
+// shaping — the morph outline (circle → triangle → square); primitive-agnostic
+function drawShapingCube(ctx, size, t, dark) {
+  const K = M_CYCLE.length, tc = t % (M_SEG * K), k = Math.floor(tc / M_SEG), local = tc - k * M_SEG;
+  const m = local > M_HOLD ? smoothE((local - M_HOLD) / M_MORPH) : 0, sprd = 1.45;
+  const pA = M_CYCLE[k], pB = M_CYCLE[(k + 1) % K], MM = 160, pts = [];
+  for (let i = 0; i < MM; i++) { const f = i / MM, a = pA(f), b = pB(f); pts.push([(a[0] + (b[0] - a[0]) * m) * sprd, (a[1] + (b[1] - a[1]) * m) * sprd]); }
+  const L = []; let total = 0;
+  for (let i = 0; i < MM; i++) { const a = pts[i], b = pts[(i + 1) % MM]; const l = Math.hypot(b[0] - a[0], b[1] - a[1]); L.push(l); total += l; }
+  const n = Math.max(6, Math.round(34 * 0.702)), re = 0.021 * 1.35 * sprd, pulse = 1 + 0.02 * Math.sin(local * 3.1);
+  const dots = [], c2 = size / 2; let seg = 0, acc = 0;
+  for (let k2 = 0; k2 < n; k2++) {
+    const target = (k2 / n) * total;
+    while (acc + L[seg] < target && seg < MM - 1) { acc += L[seg]; seg++; }
+    const a = pts[seg], b = pts[(seg + 1) % MM], f = L[seg] ? Math.min(1, (target - acc) / L[seg]) : 0;
+    const x = (a[0] + (b[0] - a[0]) * f) * pulse, y = (a[1] + (b[1] - a[1]) * f) * pulse;
+    dots.push({ x: c2 + x * size, y: c2 + y * size, z: 0, r: Math.max(0.35, re * size), white: 0.1 });
+  }
+  paint(ctx, dots, dark, 0.25);
+}
+
+// ---- gallery ---------------------------------------------------------------
+
+const MODES = [
+  { key: 'working', label: 'Working Cube', sub: 'orbits · cube', draw: drawWorkingCube },
+  { key: 'searching', label: 'Searching Cube', sub: 'globe · cube', draw: drawSearchingCube },
+  { key: 'solving', label: 'Solving Cube', sub: 'rubik · literal cube', draw: drawSolvingCube },
+  { key: 'listening', label: 'Listening Cube', sub: 'wave · cube', draw: drawListeningCube },
+  { key: 'connecting', label: 'Connecting Cube', sub: 'web · cube', draw: drawConnectingCube },
+  { key: 'weaving', label: 'Weaving Cube', sub: 'braid · cube', draw: drawWeavingCube },
+  { key: 'composing', label: 'Composing Cube', sub: 'ribbon · cube', draw: drawComposingCube },
+  { key: 'breathing', label: 'Breathing Cube', sub: 'ring · square', draw: drawBreathingCube },
+  { key: 'shaping', label: 'Shaping', sub: 'morph · outline', draw: drawShapingCube }
+];
+
+const grid = document.getElementById('grid');
+const body = document.body;
+const DPR = Math.min(2, window.devicePixelRatio || 1);
+const SIZE = 150;
+let currentDark = true;
+const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (reduced) body.classList.add('reduced');
+
+const cells = MODES.map((m) => {
+  const card = document.createElement('div'); card.className = 'card';
+  const preview = document.createElement('div'); preview.className = 'card-preview';
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(SIZE * DPR); canvas.height = Math.round(SIZE * DPR);
+  canvas.style.width = SIZE + 'px'; canvas.style.height = SIZE + 'px';
+  preview.appendChild(canvas);
+  const bodyEl = document.createElement('div'); bodyEl.className = 'card-body';
+  bodyEl.innerHTML = `<div class="card-title">${m.label}</div><div class="card-sub">${m.sub}</div>`;
+  card.appendChild(preview); card.appendChild(bodyEl); grid.appendChild(card);
+  return { ...m, ctx: canvas.getContext('2d') };
+});
+
+function frameCell(c, tNow) {
+  c.ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  c.ctx.clearRect(0, 0, SIZE, SIZE);
+  c.draw(c.ctx, SIZE, tNow, currentDark);
+}
+let raf = 0, running = false;
+function loop() { const now = performance.now() / 1000; for (const c of cells) frameCell(c, now); if (running) raf = requestAnimationFrame(loop); }
+function start() { if (running || reduced) return; running = true; raf = requestAnimationFrame(loop); }
+function stop() { running = false; cancelAnimationFrame(raf); }
+function renderStatic() { for (const c of cells) frameCell(c, 0.9); }
+
+document.getElementById('seg-theme').addEventListener('click', (e) => {
+  const btn = e.target.closest('button'); if (!btn) return;
+  currentDark = btn.dataset.theme === 'dark'; body.dataset.theme = btn.dataset.theme;
+  document.querySelectorAll('#seg-theme button').forEach((b) => b.classList.toggle('active', b === btn));
+  if (reduced) renderStatic();
+});
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') stop(); else start(); });
+
+if (reduced) renderStatic();
+start();
+</script>
+
+</body>
+</html>

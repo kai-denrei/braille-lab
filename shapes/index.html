@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shapes — Braille Lab</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0e0e1a; --fg: #e0e0e0; --muted: #666; --faint: #444;
+      --card: #13131f; --card-border: #1e1e2e; --card-hover: #333;
+      --preview: #0e0e18; --link: #60a5fa;
+      --seg-bg: #13131f; --seg-border: #1e1e2e; --seg-active: #23233a;
+    }
+    body[data-theme="light"] {
+      --bg: #f2f2ec; --fg: #1c1c1c; --muted: #8a8a82; --faint: #b0b0a8;
+      --card: #ffffff; --card-border: #e2e2d8; --card-hover: #c8c8bc;
+      --preview: #f7f7f1; --link: #2563eb;
+      --seg-bg: #ffffff; --seg-border: #e2e2d8; --seg-active: #e8e8de;
+    }
+    body {
+      background: var(--bg); color: var(--fg);
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      min-height: 100vh; transition: background 0.25s, color 0.25s;
+    }
+    header { padding: 3rem 2rem 1rem; text-align: center; }
+    .eyebrow { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+    .eyebrow a { color: var(--muted); text-decoration: none; }
+    .eyebrow a:hover { color: var(--fg); }
+    header h1 { font-size: 26px; font-weight: 500; margin: 0.75rem 0 0.5rem; letter-spacing: 0.02em; }
+    header p { font-size: 13px; color: var(--muted); max-width: 460px; margin: 0 auto; line-height: 1.6; }
+    .attrib { font-size: 12px; color: var(--muted); margin-top: 0.75rem; }
+    .attrib a { color: var(--link); text-decoration: none; }
+    .attrib a:hover { text-decoration: underline; }
+
+    .controls { display: flex; gap: 1.5rem; justify-content: center; align-items: center; flex-wrap: wrap; padding: 1.5rem 2rem 0.5rem; }
+    .control { display: flex; align-items: center; gap: 0.6rem; }
+    .control-label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+    .seg { display: inline-flex; border: 1px solid var(--seg-border); border-radius: 6px; overflow: hidden; background: var(--seg-bg); }
+    .seg button { appearance: none; background: transparent; border: none; color: var(--muted); font-family: inherit; font-size: 12px; padding: 6px 14px; cursor: pointer; transition: background 0.15s, color 0.15s; }
+    .seg button + button { border-left: 1px solid var(--seg-border); }
+    .seg button.active { background: var(--seg-active); color: var(--fg); }
+    .seg button:hover:not(.active) { color: var(--fg); }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1px; max-width: 900px; margin: 1.5rem auto 0; padding: 0 2rem; }
+    .card { background: var(--card); border: 1px solid var(--card-border); border-radius: 8px; overflow: hidden; transition: border-color 0.2s; display: flex; flex-direction: column; }
+    .card:hover { border-color: var(--card-hover); }
+    .card-preview { background: var(--preview); min-height: 160px; display: flex; align-items: center; justify-content: center; transition: background 0.25s; }
+    .card-preview canvas { display: block; }
+    .card-body { padding: 0.9rem 1rem 1rem; text-align: center; }
+    .card-title { font-size: 14px; font-weight: 500; color: var(--fg); }
+    .card-sub { font-size: 11px; color: var(--muted); margin-top: 0.25rem; }
+
+    .reduced-note { text-align: center; font-size: 11px; color: var(--muted); padding: 1rem 2rem 0; display: none; }
+    body.reduced .reduced-note { display: block; }
+
+    footer { text-align: center; padding: 3rem 2rem; font-size: 11px; color: var(--faint); line-height: 1.8; }
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--fg); }
+
+    @media (max-width: 640px) {
+      header { padding: 2rem 1rem 1rem; }
+      .grid { grid-template-columns: 1fr 1fr; padding: 0 1rem; }
+      .controls { gap: 1rem; }
+    }
+  </style>
+</head>
+<body data-theme="dark">
+
+<header>
+  <div class="eyebrow"><a href="../index.html">&larr; braille lab</a></div>
+  <h1>Shapes</h1>
+  <p>Dotted 3D solids drawn with the same halftone technique as the orbs — rotated, depth-shaded, z-sorted, plain 2D canvas arcs only. New forms beyond the nine states.</p>
+  <div class="attrib">Built on the <a href="../thinking-orbs/index.html">Thinking Orbs</a> engine — technique by Jakub Antalik (MIT)</div>
+</header>
+
+<div class="controls">
+  <div class="control">
+    <span class="control-label">Theme</span>
+    <div class="seg" id="seg-theme">
+      <button data-theme="dark" class="active">dark</button>
+      <button data-theme="light">light</button>
+    </div>
+  </div>
+</div>
+
+<div class="reduced-note">Reduced-motion is on — shapes show a single static frame.</div>
+
+<div class="grid" id="grid"></div>
+
+<footer>
+  A Braille Lab exploration built on the <a href="../thinking-orbs/index.html">Thinking Orbs</a> dotted-halftone engine (MIT © Jakub Antalik).<br>
+  Shape geometry &amp; sampling original.
+</footer>
+
+<script>
+// =============================================================================
+// Shapes — dotted 3D solids on the Thinking Orbs halftone engine.
+// Core primitives (projection + z-sorted depth-shaded painter) are from the
+// ported Thinking Orbs engine (MIT © 2026 Jakub Antalik). The shape geometry
+// and surface/edge sampling below are original to Braille Lab.
+// =============================================================================
+
+// ---- core primitives (from Thinking Orbs engine) ---------------------------
+
+function makeProj(yaw, tilt, cx, cy, scale) {
+  const st = Math.sin(tilt), ct = Math.cos(tilt), sy = Math.sin(yaw), cyw = Math.cos(yaw);
+  return (x, y, z) => {
+    const x1 = x * cyw + z * sy, z1 = -x * sy + z * cyw;
+    const y1 = y * ct - z1 * st, z2 = y * st + z1 * ct;
+    return [cx + x1 * scale, cy - y1 * scale, z2];
+  };
+}
+
+function paint(ctx, dots, dark, rMin = 0.3) {
+  dots.sort((a, b) => a.z - b.z);
+  for (const d of dots) {
+    const alpha = d.a == null ? 1 : d.a;
+    if (alpha < 0.02) continue;
+    const w = Math.min(1, Math.max(0, d.white));
+    const g = Math.round((dark ? 1 - w : w) * 255);
+    ctx.fillStyle = `rgba(${g},${g},${g},${alpha})`;
+    ctx.beginPath();
+    ctx.arc(d.x, d.y, Math.max(rMin, d.r), 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+const radiusScale = (size, pow) => (size / 300) ** pow;
+
+// ---- geometry helpers ------------------------------------------------------
+
+function norm3(v) { return Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]); }
+
+/** Scale a vertex list so its farthest point sits at radius 1. */
+function unitize(verts) {
+  let m = 0;
+  for (const v of verts) m = Math.max(m, norm3(v));
+  return verts.map((v) => [v[0] / m, v[1] / m, v[2] / m]);
+}
+
+/** Sample a planar polygon face (fan-triangulated) on a barycentric grid. */
+function sampleFace(verts, idx, density) {
+  const out = [];
+  const v0 = verts[idx[0]];
+  for (let f = 1; f < idx.length - 1; f++) {
+    const v1 = verts[idx[f]], v2 = verts[idx[f + 1]];
+    for (let i = 0; i <= density; i++) {
+      for (let j = 0; j <= density - i; j++) {
+        const a = i / density, b = j / density, c = 1 - a - b;
+        out.push([
+          v0[0] * c + v1[0] * a + v2[0] * b,
+          v0[1] * c + v1[1] * a + v2[1] * b,
+          v0[2] * c + v1[2] * a + v2[2] * b
+        ]);
+      }
+    }
+  }
+  return out;
+}
+
+/** Evenly sample points along a segment (endpoints included). */
+function sampleEdge(pa, pb, n) {
+  const out = [];
+  for (let k = 0; k <= n; k++) {
+    const t = k / n;
+    out.push([pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t, pa[2] + (pb[2] - pa[2]) * t]);
+  }
+  return out;
+}
+
+/** Derive edges of a regular solid: all vertex pairs at the minimum distance. */
+function uniformEdges(verts) {
+  let dmin = Infinity;
+  for (let i = 0; i < verts.length; i++)
+    for (let j = i + 1; j < verts.length; j++) {
+      const dx = verts[i][0] - verts[j][0], dy = verts[i][1] - verts[j][1], dz = verts[i][2] - verts[j][2];
+      dmin = Math.min(dmin, Math.sqrt(dx * dx + dy * dy + dz * dz));
+    }
+  const thr = dmin * 1.08;
+  const edges = [];
+  for (let i = 0; i < verts.length; i++)
+    for (let j = i + 1; j < verts.length; j++) {
+      const dx = verts[i][0] - verts[j][0], dy = verts[i][1] - verts[j][1], dz = verts[i][2] - verts[j][2];
+      if (Math.sqrt(dx * dx + dy * dy + dz * dz) <= thr) edges.push([i, j]);
+    }
+  return edges;
+}
+
+// ---- shape definitions -----------------------------------------------------
+
+// Square pyramid — apex over a square base.
+function pyramidGeom() {
+  const verts = unitize([
+    [0, 1.15, 0],          // 0 apex
+    [0.8, -0.5, 0.8],      // 1
+    [-0.8, -0.5, 0.8],     // 2
+    [-0.8, -0.5, -0.8],    // 3
+    [0.8, -0.5, -0.8]      // 4
+  ]);
+  const faces = [[1, 2, 3, 4], [0, 1, 2], [0, 2, 3], [0, 3, 4], [0, 4, 1]];
+  return { verts, faces };
+}
+
+// Square bipyramid — two pyramids joined base-to-base (double-inverted).
+function bipyramidGeom() {
+  const verts = unitize([
+    [0, 1, 0],     // 0 top apex
+    [0, -1, 0],    // 1 bottom apex
+    [0.9, 0, 0],   // 2
+    [0, 0, 0.9],   // 3
+    [-0.9, 0, 0],  // 4
+    [0, 0, -0.9]   // 5
+  ]);
+  const faces = [
+    [0, 2, 3], [0, 3, 4], [0, 4, 5], [0, 5, 2],
+    [1, 3, 2], [1, 4, 3], [1, 5, 4], [1, 2, 5]
+  ];
+  return { verts, faces };
+}
+
+// Regular dodecahedron — 20 vertices (golden-ratio coords), uniform edges.
+function dodecaGeom() {
+  const P = 1.6180339887, I = 1 / P;
+  const raw = [
+    [1, 1, 1], [1, 1, -1], [1, -1, 1], [1, -1, -1],
+    [-1, 1, 1], [-1, 1, -1], [-1, -1, 1], [-1, -1, -1],
+    [0, I, P], [0, I, -P], [0, -I, P], [0, -I, -P],
+    [I, P, 0], [I, -P, 0], [-I, P, 0], [-I, -P, 0],
+    [P, 0, I], [P, 0, -I], [-P, 0, I], [-P, 0, -I]
+  ];
+  const verts = unitize(raw);
+  return { verts, edges: uniformEdges(verts) };
+}
+
+// ---- draw functions --------------------------------------------------------
+
+function pushSurface(dots, pt, p, rs) {
+  const [px, py, z] = pt(p[0], p[1], p[2]);
+  const depth = (z + 1) / 2;
+  dots.push({ x: px, y: py, z, r: (0.5 + 1.5 * depth) * rs, white: 0.62 - 0.5 * depth, a: 0.45 + 0.55 * depth });
+}
+function pushVertex(dots, pt, p, rs) {
+  const [px, py, z] = pt(p[0], p[1], p[2]);
+  const depth = (z + 1) / 2;
+  dots.push({ x: px, y: py, z, r: (1.4 + 1.6 * depth) * rs, white: 0.1 });
+}
+
+function makeSolidDraw(geom, density) {
+  return (ctx, size, t, dark) => {
+    const cx = size / 2, cy = size / 2;
+    const R = (size / 2) * 0.72;
+    const pt = makeProj(t * 0.5, 0.45 + 0.08 * Math.sin(t * 0.4), cx, cy, R);
+    const rs = radiusScale(size, 0.6);
+    const dots = [];
+    if (geom.faces) {
+      for (const f of geom.faces) for (const p of sampleFace(geom.verts, f, density)) pushSurface(dots, pt, p, rs);
+    }
+    if (geom.edges) {
+      for (const [i, j] of geom.edges) for (const p of sampleEdge(geom.verts[i], geom.verts[j], 9)) pushSurface(dots, pt, p, rs);
+    }
+    for (const v of geom.verts) pushVertex(dots, pt, v, rs);
+    paint(ctx, dots, dark, 0.3);
+  };
+}
+
+// Möbius strip — one-sided parametric surface.
+function drawMobius(ctx, size, t, dark) {
+  const cx = size / 2, cy = size / 2;
+  const R = (size / 2) * 0.58;
+  const pt = makeProj(t * 0.45, 0.5 + 0.1 * Math.sin(t * 0.4), cx, cy, R);
+  const rs = radiusScale(size, 0.6);
+  const dots = [];
+  const uN = 140, vN = 6, halfW = 0.42;
+  for (let ui = 0; ui < uN; ui++) {
+    const u = (ui / uN) * 2 * Math.PI;
+    const cu = Math.cos(u), su = Math.sin(u), hu = Math.cos(u / 2), su2 = Math.sin(u / 2);
+    for (let vi = 0; vi <= vN; vi++) {
+      const v = -halfW + (vi / vN) * 2 * halfW;
+      const rad = 1 + v * hu;
+      const x = rad * cu, y = rad * su, z = v * su2;
+      const [px, py, zr] = pt(x, y, z);
+      const depth = (zr + 1) / 2;
+      const edge = Math.abs(vi - vN / 2) / (vN / 2);
+      dots.push({ x: px, y: py, z: zr, r: (0.5 + 1.5 * depth) * (1 - 0.2 * edge) * rs, white: 0.6 - 0.48 * depth + 0.16 * edge, a: 0.45 + 0.55 * depth });
+    }
+  }
+  paint(ctx, dots, dark, 0.3);
+}
+
+// ---- gallery ----------------------------------------------------------------
+
+const SHAPES = [
+  { key: 'pyramid', label: 'Pyramid', sub: 'square pyramid', draw: makeSolidDraw(pyramidGeom(), 11) },
+  { key: 'bipyramid', label: 'Double-Inverted', sub: 'square bipyramid', draw: makeSolidDraw(bipyramidGeom(), 11) },
+  { key: 'dodeca', label: 'Dodecahedron', sub: '12 pentagonal faces', draw: makeSolidDraw(dodecaGeom(), 0) },
+  { key: 'mobius', label: 'Möbius Strip', sub: 'one-sided surface', draw: drawMobius }
+];
+
+const grid = document.getElementById('grid');
+const body = document.body;
+const DPR = Math.min(2, window.devicePixelRatio || 1);
+const SIZE = 120;
+
+let currentDark = true;
+const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (reduced) body.classList.add('reduced');
+
+const shapes = SHAPES.map((s) => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  const preview = document.createElement('div');
+  preview.className = 'card-preview';
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(SIZE * DPR);
+  canvas.height = Math.round(SIZE * DPR);
+  canvas.style.width = SIZE + 'px';
+  canvas.style.height = SIZE + 'px';
+  preview.appendChild(canvas);
+  const bodyEl = document.createElement('div');
+  bodyEl.className = 'card-body';
+  bodyEl.innerHTML = `<div class="card-title">${s.label}</div><div class="card-sub">${s.sub}</div>`;
+  card.appendChild(preview);
+  card.appendChild(bodyEl);
+  grid.appendChild(card);
+  return { ...s, ctx: canvas.getContext('2d') };
+});
+
+function frameShape(s, tNow) {
+  s.ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  s.ctx.clearRect(0, 0, SIZE, SIZE);
+  s.draw(s.ctx, SIZE, tNow, currentDark);
+}
+
+let raf = 0, running = false;
+function loop() {
+  const now = performance.now() / 1000;
+  for (const s of shapes) frameShape(s, now);
+  if (running) raf = requestAnimationFrame(loop);
+}
+function start() { if (running || reduced) return; running = true; raf = requestAnimationFrame(loop); }
+function stop() { running = false; cancelAnimationFrame(raf); }
+function renderStatic() { for (const s of shapes) frameShape(s, 0.9); }
+
+document.getElementById('seg-theme').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  currentDark = btn.dataset.theme === 'dark';
+  body.dataset.theme = btn.dataset.theme;
+  document.querySelectorAll('#seg-theme button').forEach((b) => b.classList.toggle('active', b === btn));
+  if (reduced) renderStatic();
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') stop();
+  else start();
+});
+
+if (reduced) renderStatic();
+start();
+</script>
+
+</body>
+</html>
