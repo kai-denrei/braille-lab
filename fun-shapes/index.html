@@ -301,6 +301,70 @@ function pineapplePts() {
   return fitUnit(pts);
 }
 
+// ---- enemy units -----------------------------------------------------------
+// invader — the classic pixel-alien silhouette, one dot per lit cell (flat)
+function invaderPts() {
+  const rows = ['..X.....X..', '...X...X...', '..XXXXXXX..', '.XX.XXX.XX.', 'XXXXXXXXXXX', 'X.XXXXXXX.X', 'X.X.....X.X', '...XX.XX...'];
+  const pts = [], W = rows[0].length, H = rows.length;
+  for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) if (rows[r][c] === 'X') { const x = (c - (W - 1) / 2) * 0.16, y = ((H - 1) / 2 - r) * 0.16, eye = r === 2 && (c === 3 || c === 7); pts.push(eye ? [x, y, 0, 1] : [x, y, 0]); } // eyes pop
+  return fitUnit(pts);
+}
+// ufo — a flying saucer: domed cockpit on a squashed disc with under-lights
+function ufoPts() {
+  const pts = [];
+  for (let i = 0; i < 150; i++) { const d = fibDir(i, 150); if (d[1] < 0) continue; pts.push([d[0] * 0.42, 0.06 + d[1] * 0.34, d[2] * 0.42]); } // cockpit dome
+  for (let i = 0; i < 460; i++) { const d = fibDir(i, 460); pts.push([d[0] * 0.98, d[1] * 0.16, d[2] * 0.98]); }                      // saucer disc
+  for (let a = 0; a < 90; a++) { const ang = a / 90 * 2 * Math.PI; pts.push([Math.cos(ang), 0, Math.sin(ang)]); }                     // rim edge
+  for (let k = 0; k < 8; k++) { const ang = k / 8 * 2 * Math.PI; pts.push([0.58 * Math.cos(ang), -0.17, 0.58 * Math.sin(ang), 1]); }  // under-lights
+  return fitUnit(pts);
+}
+// slime — a gelatinous blob: rounded dome over a drippy, wavy skirt
+function slimePts() {
+  const pts = [], R = 0.8;
+  for (let i = 0; i < 520; i++) { const d = fibDir(i, 520); if (d[1] < -0.1) continue; const wob = 1 + 0.06 * Math.sin(5 * Math.atan2(d[2], d[0])); pts.push([d[0] * R * wob, -0.18 + d[1] * R, d[2] * R * wob]); }
+  for (let a = 0; a < 64; a++) { const ang = a / 64 * 2 * Math.PI, drip = -0.18 - 0.12 * (0.5 + 0.5 * Math.sin(6 * ang)); pts.push([R * Math.cos(ang), drip, R * Math.sin(ang)]); } // drippy base
+  return fitUnit(pts);
+}
+// slime's face: two dark eyes that blink and a small grimacing mouth
+function slimeFeatures(t) {
+  const dots = [], blink = (t * 0.5 - Math.floor(t * 0.5)) > 0.92 ? 0.14 : 1;
+  for (const ex of [-0.24, 0.24]) for (let a = 0; a < 8; a++) { const ang = a / 8 * 2 * Math.PI; dots.push({ x: ex + 0.1 * Math.cos(ang), y: 0.16 + 0.12 * Math.sin(ang) * blink, z: 0.62, white: 0.97, r: 1.1 }); }
+  const mo = 0.05 + 0.03 * (0.5 + 0.5 * Math.sin(t * 2.2));
+  for (let a = 0; a < 10; a++) { const ang = a / 10 * 2 * Math.PI; dots.push({ x: 0.1 * Math.cos(ang), y: -0.16 + mo * Math.sin(ang), z: 0.64, white: 0.97, r: 0.95 }); }
+  return dots;
+}
+// sea mine — a spherical body studded with radial contact spikes (Hertz horns)
+function minePts() {
+  const pts = [], R = 0.62;
+  for (let i = 0; i < 360; i++) { const d = fibDir(i, 360); pts.push([d[0] * R, d[1] * R, d[2] * R]); }
+  const spikes = 26;
+  for (let k = 0; k < spikes; k++) { const d = fibDir(k, spikes); for (let s = 1; s <= 5; s++) { const r = R + s / 5 * 0.36, p = [d[0] * r, d[1] * r, d[2] * r]; if (s === 5) p.push(1); pts.push(p); } } // bright spike tips
+  return fitUnit(pts);
+}
+// spider — round abdomen + head with 8 jointed legs and a pair of eyes (flat)
+function spiderPts() {
+  const pts = [];
+  for (let i = 0; i < 150; i++) { const d = fibDir(i, 150); pts.push([d[0] * 0.34, -0.16 + d[1] * 0.34, 0]); } // abdomen
+  for (let i = 0; i < 70; i++) { const d = fibDir(i, 70); pts.push([d[0] * 0.2, 0.28 + d[1] * 0.2, 0]); }        // head
+  for (const sgn of [-1, 1]) for (let L = 0; L < 4; L++) { const y0 = 0.14 - L * 0.14, hip = [sgn * 0.16, y0], knee = [sgn * 0.5, y0 + 0.16], foot = [sgn * 0.85, y0 - 0.12]; for (const [A, B] of [[hip, knee], [knee, foot]]) for (let s = 0; s <= 6; s++) { const f = s / 6; pts.push([A[0] + (B[0] - A[0]) * f, A[1] + (B[1] - A[1]) * f, 0]); } } // 8 jointed legs
+  pts.push([-0.08, 0.32, 0, 1], [0.08, 0.32, 0, 1]); // eyes
+  return fitUnit(pts);
+}
+// bat — a chunky body with pointed ears and two scalloped wings (flat)
+function batPts() {
+  const pts = [];
+  for (let i = 0; i < 90; i++) { const d = fibDir(i, 90); pts.push([d[0] * 0.15, d[1] * 0.28, 0]); }                                   // body
+  for (const sgn of [-1, 1]) for (let s = 0; s <= 6; s++) { const f = s / 6; pts.push([sgn * 0.09 * (1 - f), 0.26 + f * 0.22, 0]); }   // ears
+  for (const sgn of [-1, 1]) {
+    const tipX = sgn * 0.98, tipY = 0.22;
+    for (let s = 0; s <= 16; s++) { const f = s / 16; pts.push([sgn * 0.13 + (tipX - sgn * 0.13) * f, 0.16 + (tipY - 0.16) * f + 0.06 * Math.sin(Math.PI * f), 0]); }                                          // leading edge
+    for (let s = 0; s <= 30; s++) { const f = s / 30, x = tipX + (sgn * 0.11 - tipX) * f, base = tipY + (-0.34 - tipY) * f, scallop = 0.12 * Math.abs(Math.sin(3 * Math.PI * f)); pts.push([x, base + scallop, 0]); } // scalloped trailing edge
+    for (let s = 0; s <= 6; s++) { const f = s / 6; pts.push([sgn * 0.13 + (tipX - sgn * 0.13) * f * 0.9, 0.14 - 0.24 * f, 0]); }     // membrane strut
+  }
+  pts.push([-0.07, 0.07, 0, 1], [0.07, 0.07, 0, 1]); // eyes
+  return fitUnit(pts);
+}
+
 // ---- shapes ----------------------------------------------------------------
 const SHAPES = [
   { key: 'heart', label: 'Heart', sub: 'implicit surface', pts: heartPts() },
@@ -330,7 +394,13 @@ const SHAPES = [
   { key: 'kettlebell', label: 'Kettlebell', sub: 'bell + handle', pts: kettlebellPts() },
   { key: 'stick', label: 'Stick', sub: 'rod + twig', pts: stickPts() },
   { key: 'banana', label: 'Banana', sub: 'curved taper', pts: bananaPts() },
-  { key: 'pineapple', label: 'Pineapple', sub: 'crosshatch + crown', pts: pineapplePts() }
+  { key: 'pineapple', label: 'Pineapple', sub: 'crosshatch + crown', pts: pineapplePts() },
+  { key: 'invader', label: 'Invader', sub: 'pixel alien · flat', pts: invaderPts(), flat: true },
+  { key: 'ufo', label: 'UFO', sub: 'saucer + lights', pts: ufoPts() },
+  { key: 'slime', label: 'Slime', sub: 'blob · blinks', pts: slimePts(), features: slimeFeatures },
+  { key: 'mine', label: 'Sea Mine', sub: 'spiked sphere', pts: minePts() },
+  { key: 'spider', label: 'Spider', sub: '8 legs · flat', pts: spiderPts(), flat: true },
+  { key: 'bat', label: 'Bat', sub: 'scalloped wings · flat', pts: batPts(), flat: true }
 ];
 const SHAPE_BY_KEY = Object.fromEntries(SHAPES.map((s) => [s.key, s]));
 
