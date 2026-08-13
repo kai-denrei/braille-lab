@@ -199,7 +199,6 @@ function gemPts() {
   for (let i = 0; i < nG; i++) edge(girdle[i], culet, 8);                       // pavilion facets → culet
   return fitUnit(pts);
 }
-function treePts() { const pts = [], cones = [[0.95, 0.5, 0.55], [0.55, 0.75, 0.6], [0.1, 1.0, 0.7]]; for (const [topY, baseR, hgt] of cones) { const rings = 7; for (let ir = 0; ir <= rings; ir++) { const h = ir / rings, r = baseR * h, y = topY - h * hgt, n = Math.max(1, Math.round(4 + 16 * h)); for (let a = 0; a < n; a++) { const ang = a / n * 2 * Math.PI; pts.push([r * Math.cos(ang), y, r * Math.sin(ang)]); } } } for (let iy = 0; iy < 8; iy++) { const y = -0.6 - iy / 8 * 0.4; for (let a = 0; a < 6; a++) { const ang = a / 6 * 2 * Math.PI; pts.push([0.13 * Math.cos(ang), y, 0.13 * Math.sin(ang)]); } } return fitUnit(pts); }
 function cactusPts() {
   const pts = [], col = (cx, y0, y1, r) => { const ny = Math.max(4, Math.round((y1 - y0) / 0.06)); for (let iy = 0; iy <= ny; iy++) { const y = y0 + (y1 - y0) * iy / ny; for (let a = 0; a < 9; a++) { const ang = a / 9 * 2 * Math.PI; pts.push([cx + r * Math.cos(ang), y, r * Math.sin(ang)]); } } };
   col(0, -0.95, 0.85, 0.26); for (let i = 0; i < 40; i++) { const d = fibDir(i, 40); if (d[1] > 0) pts.push([d[0] * 0.26, 0.85 + d[1] * 0.26, d[2] * 0.26]); }
@@ -365,6 +364,75 @@ function batPts() {
   return fitUnit(pts);
 }
 
+// ---- military turrets ------------------------------------------------------
+// shared parts: a pedestal base, a box housing, swept-tube barrels, muzzle rings.
+function turretPed(pts, r, yTop, yBot) {                                            // tapered pedestal + domed top plate
+  for (let iy = 0; iy <= 8; iy++) { const f = iy / 8, y = yBot + (yTop - yBot) * f, rr = r * (0.78 + 0.22 * f); for (let a = 0; a < 22; a++) { const ang = a / 22 * 2 * Math.PI; pts.push([rr * Math.cos(ang), y, rr * Math.sin(ang)]); } }
+  for (let i = 0; i < 54; i++) { const d = fibDir(i, 54); if (d[1] < 0) continue; pts.push([d[0] * r, yTop + d[1] * 0.05, d[2] * r]); }
+}
+function turretBox(pts, c, h, n) {                                                  // solid-surface box: grid on all six faces
+  for (let i = 0; i <= n; i++) for (let j = 0; j <= n; j++) { const u = i / n * 2 - 1, v = j / n * 2 - 1;
+    pts.push([c[0] + u * h[0], c[1] + v * h[1], c[2] - h[2]], [c[0] + u * h[0], c[1] + v * h[1], c[2] + h[2]]);
+    pts.push([c[0] - h[0], c[1] + v * h[1], c[2] + u * h[2]], [c[0] + h[0], c[1] + v * h[1], c[2] + u * h[2]]);
+    pts.push([c[0] + u * h[0], c[1] - h[1], c[2] + v * h[2]], [c[0] + u * h[0], c[1] + h[1], c[2] + v * h[2]]); }
+}
+function turretRing(pts, c, dir, r, n, hi) {                                        // a ring perpendicular to dir (muzzle brake / hub)
+  const T = normV(dir); let n1 = normV(crossV(T, [0, 1, 0.011])); if (!(n1[0] || n1[1] || n1[2])) n1 = [1, 0, 0]; const n2 = crossV(T, n1);
+  for (let i = 0; i < n; i++) { const a = i / n * 2 * Math.PI, cs = Math.cos(a), sn = Math.sin(a), p = [c[0] + r * (cs * n1[0] + sn * n2[0]), c[1] + r * (cs * n1[1] + sn * n2[1]), c[2] + r * (cs * n1[2] + sn * n2[2])]; if (hi) p.push(1); pts.push(p); }
+}
+function turretBarrel(pts, base, dir, len, r) {                                     // swept cylinder; returns the muzzle point + a bright bore dot
+  const T = normV(dir), steps = Math.max(6, Math.round(len / 0.08)); let n1 = normV(crossV(T, [0, 1, 0.011])); if (!(n1[0] || n1[1] || n1[2])) n1 = [1, 0, 0]; const n2 = crossV(T, n1);
+  for (let i = 0; i <= steps; i++) { const f = i / steps, c = [base[0] + T[0] * len * f, base[1] + T[1] * len * f, base[2] + T[2] * len * f]; for (let m = 0; m < 7; m++) { const a = m / 7 * 2 * Math.PI, cs = Math.cos(a), sn = Math.sin(a); pts.push([c[0] + r * (cs * n1[0] + sn * n2[0]), c[1] + r * (cs * n1[1] + sn * n2[1]), c[2] + r * (cs * n1[2] + sn * n2[2])]); } }
+  const mz = [base[0] + T[0] * len, base[1] + T[1] * len, base[2] + T[2] * len]; pts.push([mz[0], mz[1], mz[2], 1]); return mz;         // muzzle bore pops
+}
+// turret — the basic mount: pedestal, boxy housing, one barrel
+function turretPts() {
+  const pts = []; turretPed(pts, 0.42, -0.4, -0.95);
+  turretBox(pts, [0, -0.12, 0], [0.32, 0.22, 0.3], 6);
+  turretBarrel(pts, [0.28, -0.05, 0], [1, 0, 0.02], 0.72, 0.06);
+  return fitUnit(pts);
+}
+// twin turret — a wider housing with two parallel barrels
+function turretTwinPts() {
+  const pts = []; turretPed(pts, 0.44, -0.42, -0.95);
+  turretBox(pts, [0, -0.1, 0], [0.3, 0.24, 0.36], 6);
+  for (const dz of [-0.15, 0.15]) turretBarrel(pts, [0.26, -0.02, dz], [1, 0, 0], 0.7, 0.055);
+  return fitUnit(pts);
+}
+// gatling — a rotary cluster of six barrels around a muzzle hub
+function gatlingPts() {
+  const pts = []; turretPed(pts, 0.4, -0.45, -0.95);
+  turretBox(pts, [-0.06, -0.05, 0], [0.24, 0.24, 0.28], 5);
+  for (let k = 0; k < 6; k++) { const ang = k / 6 * 2 * Math.PI; turretBarrel(pts, [0.18, 0.02 + 0.09 * Math.cos(ang), 0.09 * Math.sin(ang)], [1, 0, 0], 0.66, 0.028); }
+  turretRing(pts, [0.84, 0.02, 0], [1, 0, 0], 0.12, 26, 1);                          // muzzle hub disc
+  return fitUnit(pts);
+}
+// railgun — a low wide mount cradling one long slender rail, tilted up
+function railgunPts() {
+  const pts = []; turretPed(pts, 0.5, -0.5, -0.95);
+  turretBox(pts, [-0.05, -0.22, 0], [0.3, 0.14, 0.32], 6);
+  turretBox(pts, [0.04, -0.02, 0], [0.14, 0.12, 0.17], 4);                            // cradle/yoke
+  turretBarrel(pts, [0.1, 0.0, 0], [0.97, 0.2, 0], 1.05, 0.035);
+  for (const dz of [-0.06, 0.06]) for (let s = 0; s <= 11; s++) { const f = s / 11; pts.push([0.1 + 0.88 * f, 0.0 + 0.18 * f, dz]); } // rail fins
+  return fitUnit(pts);
+}
+// howitzer — a heavy tiered emplacement with a thick, steep barrel + muzzle brake
+function howitzerPts() {
+  const pts = []; turretPed(pts, 0.55, -0.55, -0.95);
+  turretBox(pts, [0, -0.3, 0], [0.42, 0.14, 0.42], 6);                               // wide base slab
+  turretBox(pts, [0, -0.06, 0], [0.28, 0.2, 0.26], 5);                               // breech block
+  const mz = turretBarrel(pts, [0.12, 0.06, 0], [0.86, 0.5, 0], 0.78, 0.09);
+  turretRing(pts, mz, [0.86, 0.5, 0], 0.14, 18);                                     // muzzle brake
+  return fitUnit(pts);
+}
+// ciws — a Phalanx-style radome on a pedestal with a downward gun cluster
+function ciwsPts() {
+  const pts = []; turretPed(pts, 0.42, -0.5, -0.95);
+  const R = 0.5; for (let i = 0; i < 320; i++) { const d = fibDir(i, 320); if (d[1] < -0.22) continue; pts.push([d[0] * R, 0.02 + d[1] * R * 1.1, d[2] * R]); } // radome
+  for (let k = 0; k < 6; k++) { const ang = k / 6 * 2 * Math.PI; turretBarrel(pts, [0.4, -0.18 + 0.07 * Math.cos(ang), 0.07 * Math.sin(ang)], [1, -0.12, 0], 0.34, 0.03); }
+  return fitUnit(pts);
+}
+
 // ---- shapes ----------------------------------------------------------------
 const SHAPES = [
   { key: 'heart', label: 'Heart', sub: 'implicit surface', pts: heartPts() },
@@ -384,7 +452,7 @@ const SHAPES = [
   { key: 'mushroom', label: 'Mushroom', sub: 'cap + stem', pts: mushroomPts() },
   { key: 'saturn', label: 'Saturn', sub: 'planet + ring', pts: saturnPts() },
   { key: 'gem', label: 'Gem', sub: 'brilliant cut', pts: gemPts() },
-  { key: 'tree', label: 'Pine Tree', sub: 'stacked cones', pts: treePts() },
+  { key: 'turret', label: 'Turret', sub: 'single shot', pts: turretPts() },
   { key: 'cactus', label: 'Cactus', sub: 'saguaro', pts: cactusPts() },
   { key: 'cloud', label: 'Cloud', sub: 'blob cluster', pts: cloudPts() },
   { key: 'umbrella', label: 'Umbrella', sub: 'canopy + handle', pts: umbrellaPts() },
@@ -400,7 +468,12 @@ const SHAPES = [
   { key: 'slime', label: 'Slime', sub: 'blob · blinks', pts: slimePts(), features: slimeFeatures },
   { key: 'mine', label: 'Sea Mine', sub: 'spiked sphere', pts: minePts() },
   { key: 'spider', label: 'Spider', sub: '8 legs · flat', pts: spiderPts(), flat: true },
-  { key: 'bat', label: 'Bat', sub: 'scalloped wings · flat', pts: batPts(), flat: true }
+  { key: 'bat', label: 'Bat', sub: 'scalloped wings · flat', pts: batPts(), flat: true },
+  { key: 'turret-twin', label: 'Twin Turret', sub: 'dual barrels', pts: turretTwinPts() },
+  { key: 'gatling', label: 'Gatling', sub: 'rotary cluster', pts: gatlingPts() },
+  { key: 'railgun', label: 'Railgun', sub: 'long slender rail', pts: railgunPts() },
+  { key: 'howitzer', label: 'Howitzer', sub: 'heavy · muzzle brake', pts: howitzerPts() },
+  { key: 'ciws', label: 'CIWS', sub: 'radome + gun cluster', pts: ciwsPts() }
 ];
 const SHAPE_BY_KEY = Object.fromEntries(SHAPES.map((s) => [s.key, s]));
 
