@@ -364,6 +364,95 @@ function batPts() {
   return fitUnit(pts);
 }
 
+// ---- viruses ---------------------------------------------------------------
+// coronavirus — a fuzzy shell studded with club-shaped spikes tipped by knobs
+function coronaPts() {
+  const pts = [], R = 0.5, nSpk = 44;
+  for (let i = 0; i < 320; i++) { const d = fibDir(i, 320); pts.push([d[0] * R, d[1] * R, d[2] * R]); }
+  for (let k = 0; k < nSpk; k++) { const d = fibDir(k, nSpk);
+    for (let s = 1; s <= 3; s++) { const r = R + s / 3 * 0.28; pts.push([d[0] * r, d[1] * r, d[2] * r]); }                 // stalk
+    const tip = R + 0.34; for (let j = 0; j < 6; j++) { const e = fibDir(j, 6); pts.push([d[0] * tip + e[0] * 0.07, d[1] * tip + e[1] * 0.07, d[2] * tip + e[2] * 0.07, 1]); } // knob pops
+  }
+  return fitUnit(pts);
+}
+// bacteriophage — the "lunar lander": icosahedral head, tail sheath, leg fibers
+function phagePts() {
+  const pts = [], hy = 0.5, hR = 0.4, tailTop = 0.1, tailBot = -0.35, tr = 0.1;
+  for (let i = 0; i < 200; i++) { const d = fibDir(i, 200); pts.push([d[0] * hR, hy + d[1] * hR, d[2] * hR]); }          // head capsid
+  for (let iy = 0; iy <= 14; iy++) { const y = tailTop + (tailBot - tailTop) * iy / 14; for (let a = 0; a < 10; a++) { const ang = a / 10 * 2 * Math.PI; pts.push([tr * Math.cos(ang), y, tr * Math.sin(ang)]); } } // tail sheath
+  for (let i = 0; i < 30; i++) { const a = i / 30 * 2 * Math.PI; for (const rr of [0.12, 0.2]) pts.push([rr * Math.cos(a), tailBot, rr * Math.sin(a)]); } // baseplate
+  for (let k = 0; k < 6; k++) { const ang = k / 6 * 2 * Math.PI, cx = Math.cos(ang), cz = Math.sin(ang), hip = [0.14 * cx, tailBot, 0.14 * cz], knee = [0.2 * cx, tailBot - 0.05, 0.2 * cz], foot = [0.5 * cx, -0.9, 0.5 * cz];
+    for (const [A, B] of [[hip, knee], [knee, foot]]) for (let s = 0; s <= 6; s++) { const f = s / 6, p = [A[0] + (B[0] - A[0]) * f, A[1] + (B[1] - A[1]) * f, A[2] + (B[2] - A[2]) * f]; if (B === foot && s === 6) p.push(1); pts.push(p); } } // leg fibers
+  return fitUnit(pts);
+}
+// adenovirus — an icosahedral capsid with a penton antenna at every vertex
+function adenoPts() {
+  const pts = [], R = 0.55, P = (1 + Math.sqrt(5)) / 2, verts = [];
+  for (const s1 of [-1, 1]) for (const s2 of [-1, 1]) verts.push([0, s1, s2 * P], [s1, s2 * P, 0], [s2 * P, 0, s1]);   // 12 icosahedral vertices
+  for (let i = 0; i < 300; i++) { const d = fibDir(i, 300); pts.push([d[0] * R, d[1] * R, d[2] * R]); }
+  for (const v of verts) { const d = normV(v);
+    for (let s = 1; s <= 4; s++) { const r = R + s / 4 * 0.34; pts.push([d[0] * r, d[1] * r, d[2] * r]); }                // antenna
+    const tip = R + 0.4; pts.push([d[0] * tip, d[1] * tip, d[2] * tip, 1]); for (let j = 0; j < 4; j++) { const e = fibDir(j, 4); pts.push([d[0] * tip + e[0] * 0.05, d[1] * tip + e[1] * 0.05, d[2] * tip + e[2] * 0.05, 1]); } } // knob
+  return fitUnit(pts);
+}
+// helical rod (TMV) — a spiral-wound capsid rod around a hollow RNA channel
+function tmvPts() {
+  const pts = [], H = 1.7, R = 0.42, turns = 6;
+  for (let i = 0; i < 260; i++) { const s = i / 259, y = (s - 0.5) * H, th = s * turns * 2 * Math.PI; pts.push([R * Math.cos(th), y, R * Math.sin(th), 1]); } // helical stripe pops
+  for (let iy = 0; iy <= 18; iy++) { const y = (iy / 18 - 0.5) * H; for (let a = 0; a < 11; a++) { const ang = a / 11 * 2 * Math.PI; pts.push([R * Math.cos(ang), y, R * Math.sin(ang)]); } pts.push([0, y, 0]); } // wall + central channel
+  for (const yy of [-H / 2, H / 2]) for (let a = 0; a < 16; a++) { const ang = a / 16 * 2 * Math.PI; for (const rr of [0.14, 0.28, R]) pts.push([rr * Math.cos(ang), yy, rr * Math.sin(ang)]); } // end caps
+  return fitUnit(pts);
+}
+
+// ---- organisms -------------------------------------------------------------
+// amoeba — an irregular blob throwing out finger-like pseudopods, with a nucleus
+function amoebaPts() {
+  const pts = [], N = 620, pods = [[1, 0.2, 0.3], [-0.6, 0.1, 0.8], [0.2, -0.3, -0.9], [-0.9, 0.4, -0.2], [0.4, 0.85, 0.1]];
+  const bump = (d) => { let r = 0.6 + 0.06 * Math.sin(4 * d[0] + 3 * d[2]); for (const p of pods) r += 0.42 * Math.pow(Math.max(0, dotV(d, normV(p))), 6); return r; };
+  for (let i = 0; i < N; i++) { const d = fibDir(i, N), r = bump(d); pts.push([d[0] * r, d[1] * r * 0.85, d[2] * r]); }
+  for (let i = 0; i < 44; i++) { const d = fibDir(i, 44); pts.push([0.12 + d[0] * 0.17, -0.05 + d[1] * 0.17, d[2] * 0.17, 1]); }                     // nucleus pops
+  for (const [cx, cy, cz, vr] of [[-0.3, 0.1, 0.12, 0.12], [0.12, 0.28, -0.16, 0.09]]) for (let a = 0; a < 14; a++) { const ang = a / 14 * 2 * Math.PI; pts.push([cx + vr * Math.cos(ang), cy + vr * Math.sin(ang), cz]); } // vacuoles
+  return fitUnit(pts);
+}
+// paramecium — a slipper-shaped ciliate: tapered ellipsoid furred with cilia
+function parameciumPts() {
+  const pts = [], N = 340, A = 0.95, B = 0.42;
+  const surf = (d) => { const taper = 1 - 0.25 * Math.max(0, d[0]); return [d[0] * A, d[1] * B * taper, d[2] * B * taper]; };
+  for (let i = 0; i < N; i++) pts.push(surf(fibDir(i, N)));
+  for (let i = 0; i < 160; i++) { const s = surf(fibDir(i, 160)), nrm = normV([s[0] / (A * A), s[1] / (B * B), s[2] / (B * B)]); pts.push([s[0] + nrm[0] * 0.11, s[1] + nrm[1] * 0.11, s[2] + nrm[2] * 0.11]); } // cilia
+  for (let i = 0; i < 30; i++) { const d = fibDir(i, 30); pts.push([d[0] * 0.2, d[1] * 0.14, d[2] * 0.14, 1]); }                                        // macronucleus
+  return fitUnit(pts);
+}
+// bacterium — a rod (bacillus) capsule with several trailing wavy flagella
+function bacteriumPts() {
+  const pts = [], L = 0.68, R = 0.3;
+  for (let ix = -12; ix <= 12; ix++) { const x = ix / 12 * L; for (let a = 0; a < 14; a++) { const ang = a / 14 * 2 * Math.PI; pts.push([x, R * Math.cos(ang), R * Math.sin(ang)]); } } // body
+  for (const sgn of [-1, 1]) for (let i = 0; i < 60; i++) { const d = fibDir(i, 60); if (sgn * d[0] < 0) continue; pts.push([sgn * L + d[0] * R, d[1] * R, d[2] * R]); } // caps
+  for (let k = 0; k < 4; k++) { const ph = k / 4 * 2 * Math.PI; for (let s = 0; s <= 26; s++) { const f = s / 26, x = -L - 0.05 - f * 0.8, amp = 0.16 * f; pts.push([x, amp * Math.sin(f * 10 + ph) + 0.12 * Math.cos(ph), amp * Math.cos(f * 10 + ph) + 0.12 * Math.sin(ph)]); } } // flagella
+  return fitUnit(pts);
+}
+// neuron — a soma sprouting branched dendrites and one long axon to its terminals
+function neuronPts() {
+  const pts = [], nline = (a, b, steps) => { for (let s = 0; s <= steps; s++) { const f = s / steps; pts.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f]); } };
+  for (let i = 0; i < 74; i++) { const d = fibDir(i, 74); pts.push([d[0] * 0.22, d[1] * 0.22, d[2] * 0.22]); }                                          // soma
+  for (const dr of [[0.7, 0.8, 0.2], [-0.8, 0.6, -0.3], [-0.3, 0.9, 0.5], [0.2, -0.6, -0.7], [-0.6, -0.5, 0.5], [0.85, -0.1, -0.4]]) {
+    const d = normV(dr), root = [d[0] * 0.2, d[1] * 0.2, d[2] * 0.2], mid = [d[0] * 0.58, d[1] * 0.58, d[2] * 0.58]; nline(root, mid, 8);
+    for (const jt of [[d[1], -d[0], d[2]], [-d[1], d[0], -d[2]]]) { const j = normV([d[0] + jt[0] * 0.9, d[1] + jt[1] * 0.9, d[2] + jt[2] * 0.9]); nline(mid, [mid[0] + j[0] * 0.42, mid[1] + j[1] * 0.42, mid[2] + j[2] * 0.42], 6); } // forks
+  }
+  const ax = normV([0.1, -1, 0.15]), end = [ax[0], ax[1], ax[2]]; nline([ax[0] * 0.2, ax[1] * 0.2, ax[2] * 0.2], end, 16);                              // axon
+  for (let j = 0; j < 5; j++) { const e = fibDir(j, 5); pts.push([end[0] + e[0] * 0.12, end[1] + e[1] * 0.12, end[2] + e[2] * 0.12, 1]); }              // terminals pop
+  return fitUnit(pts);
+}
+// jellyfish — a translucent bell trailing wavy tentacles and frilly oral arms
+function jellyfishPts() {
+  const pts = [], R = 0.62;
+  for (let i = 0; i < 300; i++) { const d = fibDir(i, 300); if (d[1] < 0) continue; const wob = 1 + 0.05 * Math.sin(6 * Math.atan2(d[2], d[0])); pts.push([d[0] * R * wob, 0.2 + d[1] * R * 0.8, d[2] * R * wob]); } // bell
+  for (let a = 0; a < 40; a++) { const ang = a / 40 * 2 * Math.PI; pts.push([R * Math.cos(ang), 0.2, R * Math.sin(ang)]); }                              // rim
+  for (let k = 0; k < 16; k++) { const ang = k / 16 * 2 * Math.PI, cx = R * 0.9 * Math.cos(ang), cz = R * 0.9 * Math.sin(ang); for (let s = 0; s <= 20; s++) { const f = s / 20, sway = 0.12 * Math.sin(f * 6 + ang * 2); pts.push([cx + sway * Math.cos(ang), 0.2 - f * 1.1, cz + sway * Math.sin(ang)]); } } // tentacles
+  for (let k = 0; k < 4; k++) { const ang = k / 4 * 2 * Math.PI + 0.4; for (let s = 0; s <= 12; s++) { const f = s / 12, r = 0.16 * (1 - f * 0.5); pts.push([r * Math.cos(ang) + 0.05 * Math.sin(f * 8), 0.15 - f * 0.6, r * Math.sin(ang)]); } } // oral arms
+  return fitUnit(pts);
+}
+
 // ---- military turrets ------------------------------------------------------
 // shared parts: a pedestal base, a box housing, swept-tube barrels, muzzle rings.
 function turretPed(pts, r, yTop, yBot) {                                            // tapered pedestal + domed top plate
@@ -469,6 +558,15 @@ const SHAPES = [
   { key: 'mine', label: 'Sea Mine', sub: 'spiked sphere', pts: minePts() },
   { key: 'spider', label: 'Spider', sub: '8 legs · flat', pts: spiderPts(), flat: true },
   { key: 'bat', label: 'Bat', sub: 'scalloped wings · flat', pts: batPts(), flat: true },
+  { key: 'corona', label: 'Coronavirus', sub: 'knobbed spikes', pts: coronaPts() },
+  { key: 'phage', label: 'Bacteriophage', sub: 'head + tail + legs', pts: phagePts() },
+  { key: 'adeno', label: 'Adenovirus', sub: 'icosahedral capsid', pts: adenoPts() },
+  { key: 'tmv', label: 'Helical Rod', sub: 'spiral capsid · TMV', pts: tmvPts() },
+  { key: 'amoeba', label: 'Amoeba', sub: 'pseudopod blob', pts: amoebaPts() },
+  { key: 'paramecium', label: 'Paramecium', sub: 'ciliated slipper', pts: parameciumPts() },
+  { key: 'bacterium', label: 'Bacterium', sub: 'rod + flagella', pts: bacteriumPts() },
+  { key: 'neuron', label: 'Neuron', sub: 'soma + dendrites', pts: neuronPts() },
+  { key: 'jellyfish', label: 'Jellyfish', sub: 'bell + tentacles', pts: jellyfishPts() },
   { key: 'turret-twin', label: 'Twin Turret', sub: 'dual barrels', pts: turretTwinPts() },
   { key: 'gatling', label: 'Gatling', sub: 'rotary cluster', pts: gatlingPts() },
   { key: 'railgun', label: 'Railgun', sub: 'long slender rail', pts: railgunPts() },
