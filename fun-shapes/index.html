@@ -552,6 +552,53 @@ function bipyramidPts() { const v = [[0, 1.15, 0], [0, -1.15, 0], [0.82, 0, 0.82
 // mobius — a parametric strip with a single half-twist (one-sided surface)
 function mobiusPts() { const pts = [], NU = 130, NV = 7, R = 0.75, w = 0.34; for (let i = 0; i < NU; i++) { const u = i / NU * 2 * Math.PI; for (let j = 0; j < NV; j++) { const v = (j / (NV - 1) - 0.5) * w, R2 = R + v * Math.cos(u / 2); pts.push([R2 * Math.cos(u), v * Math.sin(u / 2), R2 * Math.sin(u)]); } } return fitUnit(pts); }
 
+// ---- origami ---------------------------------------------------------------
+// folded-paper forms: flat facets (fillTri) with popped crease lines (traceEdge).
+// shuriken — a flat four-point throwing star with a center hole (flat)
+function shurikenPts() {
+  const pts = [], N = 4, Ro = 1.0, Ri = 0.32, b = [];
+  for (let k = 0; k < N; k++) { const ao = k / N * 2 * Math.PI, ai = (k + 0.5) / N * 2 * Math.PI; b.push([Ro * Math.cos(ao), Ro * Math.sin(ao)], [Ri * Math.cos(ai), Ri * Math.sin(ai)]); }
+  const hub = b.map(([x, y]) => { const L = Math.hypot(x, y); return [x * 0.16 / L, y * 0.16 / L, 0]; });
+  for (let i = 0; i < b.length; i++) { const B = [b[i][0], b[i][1], 0], C = [b[(i + 1) % b.length][0], b[(i + 1) % b.length][1], 0], Hh = hub[i], Hn = hub[(i + 1) % b.length]; fillTri(pts, Hh, B, C, 5); fillTri(pts, Hh, C, Hn, 4); traceEdge(pts, B, C, 4, 1); traceEdge(pts, Hh, Hn, 2, 1); } // blades + creases + hub rim
+  return fitUnit(pts);
+}
+// sailboat — a folded hull with a mast, mainsail and jib
+function sailboatPts() {
+  const pts = [], corners = [[-0.9, 0.0], [0.9, 0.0], [0.6, -0.5], [-0.6, -0.5]], zW = 0.3;
+  for (const dz of [-zW, zW]) { fillTri(pts, [corners[0][0], corners[0][1], dz], [corners[1][0], corners[1][1], dz], [corners[2][0], corners[2][1], dz], 5); fillTri(pts, [corners[0][0], corners[0][1], dz], [corners[2][0], corners[2][1], dz], [corners[3][0], corners[3][1], dz], 5); } // hull side panels
+  for (const c of corners) traceEdge(pts, [c[0], c[1], -zW], [c[0], c[1], zW], 4, 1);          // hull ribs
+  traceEdge(pts, [0, 0, 0], [0, 1.05, 0], 12, 1);                                              // mast
+  fillTri(pts, [0.03, 0.98, 0], [0.03, 0.03, 0], [0.72, 0.06, 0], 7);                          // mainsail
+  fillTri(pts, [-0.03, 0.88, 0], [-0.03, 0.06, 0], [-0.5, 0.08, 0], 6);                        // jib
+  return fitUnit(pts);
+}
+// crane — the classic paper crane: body, spread wings, up-swept neck and tail
+function cranePts() {
+  const pts = [], bv = [[0, 0.18, 0], [0, -0.12, 0], [0.22, 0.02, 0], [-0.22, 0.02, 0], [0, 0.02, 0.16], [0, 0.02, -0.16]], bf = [[0, 2, 4], [0, 4, 3], [0, 3, 5], [0, 5, 2], [1, 4, 2], [1, 3, 4], [1, 5, 3], [1, 2, 5]];
+  for (const f of bf) fillTri(pts, bv[f[0]], bv[f[1]], bv[f[2]], 3);                            // body
+  const neckBase = [0.15, 0.1, 0], neckTop = [0.62, 0.85, 0];
+  traceEdge(pts, neckBase, neckTop, 10, 1); traceEdge(pts, neckTop, [0.8, 0.78, 0], 4, 1);      // neck + beak
+  fillTri(pts, neckBase, neckTop, [0.2, 0.05, 0.06], 4); fillTri(pts, neckBase, neckTop, [0.2, 0.05, -0.06], 4);
+  const tailBase = [-0.15, 0.1, 0], tailTip = [-0.7, 0.8, 0];
+  traceEdge(pts, tailBase, tailTip, 10, 1);                                                    // tail
+  fillTri(pts, tailBase, tailTip, [-0.2, 0.05, 0.06], 4); fillTri(pts, tailBase, tailTip, [-0.2, 0.05, -0.06], 4);
+  for (const sgn of [1, -1]) { fillTri(pts, [0, 0.12, 0], [0.05, 0.45, sgn * 0.9], [-0.15, 0.05, sgn * 0.5], 7); traceEdge(pts, [0, 0.12, 0], [0.05, 0.45, sgn * 0.9], 8, 1); } // wings
+  return fitUnit(pts);
+}
+// dragon — an angular folded dragon: zigzag body, horned head, wings, curled tail
+function dragonPts() {
+  const pts = [], spine = [[-1.0, 0.35, 0], [-0.7, 0.1, 0], [-0.4, 0.05, 0], [-0.1, 0.0, 0], [0.2, 0.05, 0], [0.5, 0.15, 0], [0.75, 0.35, 0]];
+  for (let i = 0; i < spine.length - 1; i++) { const A = spine[i], B = spine[i + 1], m = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2 - 0.14, 0]; traceEdge(pts, A, B, 6, 1); fillTri(pts, A, B, [m[0], m[1], 0.08], 3); fillTri(pts, A, B, [m[0], m[1], -0.08], 3); } // body
+  const head = [0.75, 0.35, 0];
+  fillTri(pts, head, [1.02, 0.5, 0], [1.0, 0.28, 0.09], 4); fillTri(pts, head, [1.02, 0.5, 0], [1.0, 0.28, -0.09], 4);
+  traceEdge(pts, [1.02, 0.5, 0], [1.2, 0.64, 0], 3, 1); traceEdge(pts, head, [1.06, 0.18, 0], 4, 1);   // horn + jaw
+  const tail = [[-1.0, 0.35, 0], [-1.26, 0.2, 0], [-1.42, 0.34, 0], [-1.46, 0.54, 0]];
+  for (let i = 0; i < tail.length - 1; i++) traceEdge(pts, tail[i], tail[i + 1], 5, 1);          // curled tail
+  for (const sgn of [1, -1]) { const wr = [-0.2, 0.1, 0]; fillTri(pts, wr, [0.12, 0.92, sgn * 0.72], [-0.5, 0.3, sgn * 0.5], 7); traceEdge(pts, wr, [0.12, 0.92, sgn * 0.72], 9, 1); traceEdge(pts, [0.12, 0.92, sgn * 0.72], [-0.5, 0.3, sgn * 0.5], 6, 1); } // wings
+  for (const lx of [-0.3, 0.3]) traceEdge(pts, [lx, -0.05, 0.1], [lx + 0.05, -0.42, 0.15], 4);   // legs
+  return fitUnit(pts);
+}
+
 // ---- shapes ----------------------------------------------------------------
 const CATEGORIES = ['primitives', 'mathematical', 'fun', 'organic', 'origami'];
 const CAT_LABEL = { primitives: 'Primitives', mathematical: 'Mathematical', fun: 'Fun', organic: 'Organic', origami: 'Origami' };
@@ -619,7 +666,12 @@ const SHAPES = [
   { key: 'cactus', label: 'Cactus', sub: 'saguaro', cat: 'organic', pts: cactusPts() },
   { key: 'stick', label: 'Stick', sub: 'rod + twig', cat: 'organic', pts: stickPts() },
   { key: 'banana', label: 'Banana', sub: 'curved taper', cat: 'organic', pts: bananaPts() },
-  { key: 'pineapple', label: 'Pineapple', sub: 'crosshatch + crown', cat: 'organic', pts: pineapplePts() }
+  { key: 'pineapple', label: 'Pineapple', sub: 'crosshatch + crown', cat: 'organic', pts: pineapplePts() },
+  // origami
+  { key: 'shuriken', label: 'Shuriken', sub: 'throwing star · flat', cat: 'origami', pts: shurikenPts(), flat: true },
+  { key: 'sailboat', label: 'Sailboat', sub: 'hull + sails', cat: 'origami', pts: sailboatPts() },
+  { key: 'crane', label: 'Crane', sub: 'wings + neck + tail', cat: 'origami', pts: cranePts() },
+  { key: 'dragon', label: 'Dragon', sub: 'body + wings + tail', cat: 'origami', pts: dragonPts() }
 ];
 const SHAPE_BY_KEY = Object.fromEntries(SHAPES.map((s) => [s.key, s]));
 
