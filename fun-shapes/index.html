@@ -522,56 +522,104 @@ function ciwsPts() {
   return fitUnit(pts);
 }
 
+// ---- primitives ------------------------------------------------------------
+// shared facet helpers (reused by origami): fill a triangle, trace an edge.
+function fillTri(pts, A, B, C, n) { for (let i = 0; i <= n; i++) for (let j = 0; j <= n - i; j++) { const u = i / n, v = j / n, w = 1 - u - v; pts.push([A[0] * w + B[0] * u + C[0] * v, A[1] * w + B[1] * u + C[1] * v, A[2] * w + B[2] * u + C[2] * v]); } }
+function traceEdge(pts, A, B, n, hi) { for (let s = 0; s <= n; s++) { const t = s / n, p = [A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t, A[2] + (B[2] - A[2]) * t]; if (hi) p.push(1); pts.push(p); } }
+function polyFaces(verts, faces, fN, eN) {                                          // fan-fill each face + trace unique edges
+  const pts = [], seen = new Set();
+  for (const f of faces) for (let k = 1; k < f.length - 1; k++) fillTri(pts, verts[f[0]], verts[f[k]], verts[f[k + 1]], fN);
+  for (const f of faces) for (let k = 0; k < f.length; k++) { const a = f[k], b = f[(k + 1) % f.length], key = Math.min(a, b) + ',' + Math.max(a, b); if (seen.has(key)) continue; seen.add(key); traceEdge(pts, verts[a], verts[b], eN); }
+  return pts;
+}
+function wireSolid(verts, eN) {                                                     // connect min-length vertex pairs → clean wireframe
+  const pts = []; let mn = Infinity;
+  for (let i = 0; i < verts.length; i++) for (let j = i + 1; j < verts.length; j++) { const d = Math.hypot(verts[i][0] - verts[j][0], verts[i][1] - verts[j][1], verts[i][2] - verts[j][2]); if (d < mn) mn = d; }
+  for (let i = 0; i < verts.length; i++) { for (let j = i + 1; j < verts.length; j++) { const d = Math.hypot(verts[i][0] - verts[j][0], verts[i][1] - verts[j][1], verts[i][2] - verts[j][2]); if (d < mn * 1.08) traceEdge(pts, verts[i], verts[j], eN); } pts.push([verts[i][0], verts[i][1], verts[i][2], 1]); } // vertices pop
+  return pts;
+}
+function spherePts() { const pts = []; for (let i = 0; i < 520; i++) pts.push(fibDir(i, 520)); return fitUnit(pts); }
+function cubePts() { const pts = []; turretBox(pts, [0, 0, 0], [0.7, 0.7, 0.7], 8); return fitUnit(pts); }
+function conePts() { const pts = [], R = 0.82, H = 1.6, ny = 18; for (let iy = 0; iy <= ny; iy++) { const f = iy / ny, y = -H / 2 + f * H, r = R * (1 - f); for (let a = 0; a < 26; a++) { const ang = a / 26 * 2 * Math.PI; pts.push([r * Math.cos(ang), y, r * Math.sin(ang)]); } } for (let ir = 0; ir <= 8; ir++) { const rr = R * ir / 8, n = Math.max(1, Math.round(26 * ir / 8)); for (let a = 0; a < n; a++) { const ang = a / n * 2 * Math.PI; pts.push([rr * Math.cos(ang), -H / 2, rr * Math.sin(ang)]); } } return fitUnit(pts); }
+function cylinderPts() { const pts = [], R = 0.62, H = 1.5; for (let iy = 0; iy <= 18; iy++) { const y = -H / 2 + H * iy / 18; for (let a = 0; a < 24; a++) { const ang = a / 24 * 2 * Math.PI; pts.push([R * Math.cos(ang), y, R * Math.sin(ang)]); } } for (const yy of [-H / 2, H / 2]) for (let ir = 0; ir <= 6; ir++) { const rr = R * ir / 6, n = Math.max(1, Math.round(24 * ir / 6)); for (let a = 0; a < n; a++) { const ang = a / n * 2 * Math.PI; pts.push([rr * Math.cos(ang), yy, rr * Math.sin(ang)]); } } return fitUnit(pts); }
+function torusPts() { const pts = [], Rr = 0.62, rr = 0.28, NA = 52, NB = 16; for (let i = 0; i < NA; i++) { const u = i / NA * 2 * Math.PI; for (let j = 0; j < NB; j++) { const v = j / NB * 2 * Math.PI, R2 = Rr + rr * Math.cos(v); pts.push([R2 * Math.cos(u), rr * Math.sin(v), R2 * Math.sin(u)]); } } return fitUnit(pts); }
+function tetraPts() { const v = [[1, 1, 1], [1, -1, -1], [-1, 1, -1], [-1, -1, 1]], f = [[0, 1, 2], [0, 3, 1], [0, 2, 3], [1, 3, 2]]; return fitUnit(polyFaces(v, f, 6, 8)); }
+function octaPts() { const v = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]], f = [[0, 2, 4], [0, 4, 3], [0, 3, 5], [0, 5, 2], [1, 2, 5], [1, 5, 3], [1, 3, 4], [1, 4, 2]]; return fitUnit(polyFaces(v, f, 5, 8)); }
+function icosaPts() { const P = (1 + Math.sqrt(5)) / 2, v = []; for (const s of [-1, 1]) for (const t of [-1, 1]) v.push([0, s, t * P], [s, t * P, 0], [t * P, 0, s]); return fitUnit(wireSolid(v, 6)); }
+function dodecaPts() { const P = (1 + Math.sqrt(5)) / 2, I = 1 / P, v = []; for (const a of [-1, 1]) for (const b of [-1, 1]) for (const c of [-1, 1]) v.push([a, b, c]); for (const s of [-1, 1]) for (const t of [-1, 1]) v.push([0, s * I, t * P], [s * I, t * P, 0], [t * P, 0, s * I]); return fitUnit(wireSolid(v, 5)); }
+function pyramidPts() { const v = [[0, 1.1, 0], [0.8, -0.6, 0.8], [-0.8, -0.6, 0.8], [-0.8, -0.6, -0.8], [0.8, -0.6, -0.8]], f = [[1, 2, 3, 4], [0, 1, 2], [0, 2, 3], [0, 3, 4], [0, 4, 1]]; return fitUnit(polyFaces(v, f, 5, 8)); }
+function bipyramidPts() { const v = [[0, 1.15, 0], [0, -1.15, 0], [0.82, 0, 0.82], [-0.82, 0, 0.82], [-0.82, 0, -0.82], [0.82, 0, -0.82]], f = [[0, 2, 3], [0, 3, 4], [0, 4, 5], [0, 5, 2], [1, 3, 2], [1, 4, 3], [1, 5, 4], [1, 2, 5]]; return fitUnit(polyFaces(v, f, 5, 8)); }
+// mobius — a parametric strip with a single half-twist (one-sided surface)
+function mobiusPts() { const pts = [], NU = 130, NV = 7, R = 0.75, w = 0.34; for (let i = 0; i < NU; i++) { const u = i / NU * 2 * Math.PI; for (let j = 0; j < NV; j++) { const v = (j / (NV - 1) - 0.5) * w, R2 = R + v * Math.cos(u / 2); pts.push([R2 * Math.cos(u), v * Math.sin(u / 2), R2 * Math.sin(u)]); } } return fitUnit(pts); }
+
 // ---- shapes ----------------------------------------------------------------
+const CATEGORIES = ['primitives', 'mathematical', 'fun', 'organic', 'origami'];
+const CAT_LABEL = { primitives: 'Primitives', mathematical: 'Mathematical', fun: 'Fun', organic: 'Organic', origami: 'Origami' };
 const SHAPES = [
-  { key: 'heart', label: 'Heart', sub: 'implicit surface', pts: heartPts() },
-  { key: 'star', label: 'Star', sub: 'radial · 5-point', pts: starPts(), flat: true },
-  { key: 'butterfly', label: 'Butterfly', sub: 'radial · 4 wings', pts: butterflyPts(), flat: true },
-  { key: 'knot', label: 'Torus Knot', sub: '(2,3) curve + tube', pts: torusKnotPts() },
-  { key: 'spiral', label: 'Spiral', sub: 'conical helix', pts: spiralPts() },
-  { key: 'shell', label: 'Shell', sub: 'log-spiral tube', pts: shellPts() },
-  { key: 'teardrop', label: 'Teardrop', sub: 'revolution', pts: teardropPts() },
-  { key: 'snowflake', label: 'Snowflake', sub: '6-fold · flat', pts: snowflakePts(), flat: true },
-  { key: 'skull', label: 'Skull', sub: 'sockets + jaw', pts: skullPts() },
-  { key: 'ghost', label: 'Ghost', sub: 'blinks + talks', pts: ghostPts(), features: ghostFeatures },
-  { key: 'dna', label: 'DNA Double Helix', sub: 'backbones + rungs', pts: dnaPts() },
-  { key: 'dspiral', label: 'Double Spiral', sub: 'two helices', pts: dblSpiralPts() },
-  { key: 'gear', label: 'Gear', sub: 'cog · flat', pts: gearPts(), flat: true },
-  { key: 'lightning', label: 'Lightning', sub: 'bolt · flat', pts: lightningPts(), flat: true },
-  { key: 'mushroom', label: 'Mushroom', sub: 'cap + stem', pts: mushroomPts() },
-  { key: 'saturn', label: 'Saturn', sub: 'planet + ring', pts: saturnPts() },
-  { key: 'gem', label: 'Gem', sub: 'brilliant cut', pts: gemPts() },
-  { key: 'turret', label: 'Turret', sub: 'single shot', pts: turretPts() },
-  { key: 'cactus', label: 'Cactus', sub: 'saguaro', pts: cactusPts() },
-  { key: 'cloud', label: 'Cloud', sub: 'blob cluster', pts: cloudPts() },
-  { key: 'umbrella', label: 'Umbrella', sub: 'canopy + handle', pts: umbrellaPts() },
-  { key: 'rocket', label: 'Rocket', sub: 'body + fins', pts: rocketPts() },
-  { key: 'cat', label: 'Cat', sub: 'face · flat', pts: catPts(), flat: true },
-  { key: 'songs', label: 'SONGS Domes', sub: 'twin containment', pts: songsPts() },
-  { key: 'kettlebell', label: 'Kettlebell', sub: 'bell + handle', pts: kettlebellPts() },
-  { key: 'stick', label: 'Stick', sub: 'rod + twig', pts: stickPts() },
-  { key: 'banana', label: 'Banana', sub: 'curved taper', pts: bananaPts() },
-  { key: 'pineapple', label: 'Pineapple', sub: 'crosshatch + crown', pts: pineapplePts() },
-  { key: 'invader', label: 'Invader', sub: 'pixel alien · flat', pts: invaderPts(), flat: true },
-  { key: 'ufo', label: 'UFO', sub: 'saucer + lights', pts: ufoPts() },
-  { key: 'slime', label: 'Slime', sub: 'blob · blinks', pts: slimePts(), features: slimeFeatures },
-  { key: 'mine', label: 'Sea Mine', sub: 'spiked sphere', pts: minePts() },
-  { key: 'spider', label: 'Spider', sub: '8 legs · flat', pts: spiderPts(), flat: true },
-  { key: 'bat', label: 'Bat', sub: 'scalloped wings · flat', pts: batPts(), flat: true },
-  { key: 'corona', label: 'Coronavirus', sub: 'knobbed spikes', pts: coronaPts() },
-  { key: 'phage', label: 'Bacteriophage', sub: 'head + tail + legs', pts: phagePts() },
-  { key: 'adeno', label: 'Adenovirus', sub: 'icosahedral capsid', pts: adenoPts() },
-  { key: 'tmv', label: 'Helical Rod', sub: 'spiral capsid · TMV', pts: tmvPts() },
-  { key: 'amoeba', label: 'Amoeba', sub: 'pseudopod blob', pts: amoebaPts() },
-  { key: 'paramecium', label: 'Paramecium', sub: 'ciliated slipper', pts: parameciumPts() },
-  { key: 'bacterium', label: 'Bacterium', sub: 'rod + flagella', pts: bacteriumPts() },
-  { key: 'neuron', label: 'Neuron', sub: 'soma + dendrites', pts: neuronPts() },
-  { key: 'jellyfish', label: 'Jellyfish', sub: 'bell + tentacles', pts: jellyfishPts() },
-  { key: 'turret-twin', label: 'Twin Turret', sub: 'dual barrels', pts: turretTwinPts() },
-  { key: 'gatling', label: 'Gatling', sub: 'rotary cluster', pts: gatlingPts() },
-  { key: 'railgun', label: 'Railgun', sub: 'long slender rail', pts: railgunPts() },
-  { key: 'howitzer', label: 'Howitzer', sub: 'heavy · muzzle brake', pts: howitzerPts() },
-  { key: 'ciws', label: 'CIWS', sub: 'radome + gun cluster', pts: ciwsPts() }
+  // primitives
+  { key: 'sphere', label: 'Sphere', sub: 'fibonacci lattice', cat: 'primitives', pts: spherePts() },
+  { key: 'cube', label: 'Cube', sub: 'six faces', cat: 'primitives', pts: cubePts() },
+  { key: 'cone', label: 'Cone', sub: 'apex + disc', cat: 'primitives', pts: conePts() },
+  { key: 'cylinder', label: 'Cylinder', sub: 'wall + caps', cat: 'primitives', pts: cylinderPts() },
+  { key: 'torus', label: 'Torus', sub: 'ring surface', cat: 'primitives', pts: torusPts() },
+  { key: 'tetra', label: 'Tetrahedron', sub: '4 faces', cat: 'primitives', pts: tetraPts() },
+  { key: 'octa', label: 'Octahedron', sub: '8 faces', cat: 'primitives', pts: octaPts() },
+  { key: 'icosa', label: 'Icosahedron', sub: '20 faces · wire', cat: 'primitives', pts: icosaPts() },
+  { key: 'dodeca', label: 'Dodecahedron', sub: '12 faces · wire', cat: 'primitives', pts: dodecaPts() },
+  { key: 'pyramid', label: 'Pyramid', sub: 'square base', cat: 'primitives', pts: pyramidPts() },
+  { key: 'bipyramid', label: 'Bipyramid', sub: 'double-inverted', cat: 'primitives', pts: bipyramidPts() },
+  // mathematical
+  { key: 'knot', label: 'Torus Knot', sub: '(2,3) curve + tube', cat: 'mathematical', pts: torusKnotPts() },
+  { key: 'spiral', label: 'Spiral', sub: 'conical helix', cat: 'mathematical', pts: spiralPts() },
+  { key: 'shell', label: 'Shell', sub: 'log-spiral tube', cat: 'mathematical', pts: shellPts() },
+  { key: 'dspiral', label: 'Double Spiral', sub: 'two helices', cat: 'mathematical', pts: dblSpiralPts() },
+  { key: 'gem', label: 'Gem', sub: 'brilliant cut', cat: 'mathematical', pts: gemPts() },
+  { key: 'teardrop', label: 'Teardrop', sub: 'revolution', cat: 'mathematical', pts: teardropPts() },
+  { key: 'mobius', label: 'Möbius Strip', sub: 'one-sided surface', cat: 'mathematical', pts: mobiusPts() },
+  // fun
+  { key: 'heart', label: 'Heart', sub: 'implicit surface', cat: 'fun', pts: heartPts() },
+  { key: 'star', label: 'Star', sub: 'radial · 5-point', cat: 'fun', pts: starPts(), flat: true },
+  { key: 'butterfly', label: 'Butterfly', sub: 'radial · 4 wings', cat: 'fun', pts: butterflyPts(), flat: true },
+  { key: 'snowflake', label: 'Snowflake', sub: '6-fold · flat', cat: 'fun', pts: snowflakePts(), flat: true },
+  { key: 'skull', label: 'Skull', sub: 'sockets + jaw', cat: 'fun', pts: skullPts() },
+  { key: 'ghost', label: 'Ghost', sub: 'blinks + talks', cat: 'fun', pts: ghostPts(), features: ghostFeatures },
+  { key: 'gear', label: 'Gear', sub: 'cog · flat', cat: 'fun', pts: gearPts(), flat: true },
+  { key: 'lightning', label: 'Lightning', sub: 'bolt · flat', cat: 'fun', pts: lightningPts(), flat: true },
+  { key: 'saturn', label: 'Saturn', sub: 'planet + ring', cat: 'fun', pts: saturnPts() },
+  { key: 'cat', label: 'Cat', sub: 'face · flat', cat: 'fun', pts: catPts(), flat: true },
+  { key: 'umbrella', label: 'Umbrella', sub: 'canopy + handle', cat: 'fun', pts: umbrellaPts() },
+  { key: 'rocket', label: 'Rocket', sub: 'body + fins', cat: 'fun', pts: rocketPts() },
+  { key: 'kettlebell', label: 'Kettlebell', sub: 'bell + handle', cat: 'fun', pts: kettlebellPts() },
+  { key: 'cloud', label: 'Cloud', sub: 'blob cluster', cat: 'fun', pts: cloudPts() },
+  { key: 'songs', label: 'SONGS Domes', sub: 'twin containment', cat: 'fun', pts: songsPts() },
+  { key: 'invader', label: 'Invader', sub: 'pixel alien · flat', cat: 'fun', pts: invaderPts(), flat: true },
+  { key: 'ufo', label: 'UFO', sub: 'saucer + lights', cat: 'fun', pts: ufoPts() },
+  { key: 'slime', label: 'Slime', sub: 'blob · blinks', cat: 'fun', pts: slimePts(), features: slimeFeatures },
+  { key: 'mine', label: 'Sea Mine', sub: 'spiked sphere', cat: 'fun', pts: minePts() },
+  { key: 'spider', label: 'Spider', sub: '8 legs · flat', cat: 'fun', pts: spiderPts(), flat: true },
+  { key: 'bat', label: 'Bat', sub: 'scalloped wings · flat', cat: 'fun', pts: batPts(), flat: true },
+  { key: 'turret', label: 'Turret', sub: 'single shot', cat: 'fun', pts: turretPts() },
+  { key: 'turret-twin', label: 'Twin Turret', sub: 'dual barrels', cat: 'fun', pts: turretTwinPts() },
+  { key: 'gatling', label: 'Gatling', sub: 'rotary cluster', cat: 'fun', pts: gatlingPts() },
+  { key: 'railgun', label: 'Railgun', sub: 'long slender rail', cat: 'fun', pts: railgunPts() },
+  { key: 'howitzer', label: 'Howitzer', sub: 'heavy · muzzle brake', cat: 'fun', pts: howitzerPts() },
+  { key: 'ciws', label: 'CIWS', sub: 'radome + gun cluster', cat: 'fun', pts: ciwsPts() },
+  // organic
+  { key: 'dna', label: 'DNA Double Helix', sub: 'backbones + rungs', cat: 'organic', pts: dnaPts() },
+  { key: 'corona', label: 'Coronavirus', sub: 'knobbed spikes', cat: 'organic', pts: coronaPts() },
+  { key: 'phage', label: 'Bacteriophage', sub: 'head + tail + legs', cat: 'organic', pts: phagePts() },
+  { key: 'adeno', label: 'Adenovirus', sub: 'icosahedral capsid', cat: 'organic', pts: adenoPts() },
+  { key: 'tmv', label: 'Helical Rod', sub: 'spiral capsid · TMV', cat: 'organic', pts: tmvPts() },
+  { key: 'amoeba', label: 'Amoeba', sub: 'pseudopod blob', cat: 'organic', pts: amoebaPts() },
+  { key: 'paramecium', label: 'Paramecium', sub: 'ciliated slipper', cat: 'organic', pts: parameciumPts() },
+  { key: 'bacterium', label: 'Bacterium', sub: 'rod + flagella', cat: 'organic', pts: bacteriumPts() },
+  { key: 'neuron', label: 'Neuron', sub: 'soma + dendrites', cat: 'organic', pts: neuronPts() },
+  { key: 'jellyfish', label: 'Jellyfish', sub: 'bell + tentacles', cat: 'organic', pts: jellyfishPts() },
+  { key: 'mushroom', label: 'Mushroom', sub: 'cap + stem', cat: 'organic', pts: mushroomPts() },
+  { key: 'cactus', label: 'Cactus', sub: 'saguaro', cat: 'organic', pts: cactusPts() },
+  { key: 'stick', label: 'Stick', sub: 'rod + twig', cat: 'organic', pts: stickPts() },
+  { key: 'banana', label: 'Banana', sub: 'curved taper', cat: 'organic', pts: bananaPts() },
+  { key: 'pineapple', label: 'Pineapple', sub: 'crosshatch + crown', cat: 'organic', pts: pineapplePts() }
 ];
 const SHAPE_BY_KEY = Object.fromEntries(SHAPES.map((s) => [s.key, s]));
 
