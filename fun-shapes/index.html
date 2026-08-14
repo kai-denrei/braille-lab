@@ -545,6 +545,7 @@ function wireSolid(verts, eN) {                                                 
   return pts;
 }
 function spherePts() { const pts = []; for (let i = 0; i < 520; i++) pts.push(fibDir(i, 520)); return fitUnit(pts); }
+function domePts() { const pts = [], R = 0.92; for (let i = 0; i < 340; i++) { const d = fibDir(i, 340); if (d[1] < 0) continue; pts.push([d[0] * R, -0.4 + d[1] * R, d[2] * R]); } for (let ir = 0; ir <= 8; ir++) { const rr = R * ir / 8, n = Math.max(1, Math.round(30 * ir / 8)); for (let a = 0; a < n; a++) { const ang = a / n * 2 * Math.PI; pts.push([rr * Math.cos(ang), -0.4, rr * Math.sin(ang)]); } } return fitUnit(pts); }
 function cubePts() { const pts = []; turretBox(pts, [0, 0, 0], [0.7, 0.7, 0.7], 8); return fitUnit(pts); }
 function conePts() { const pts = [], R = 0.82, H = 1.6, ny = 18; for (let iy = 0; iy <= ny; iy++) { const f = iy / ny, y = -H / 2 + f * H, r = R * (1 - f); for (let a = 0; a < 26; a++) { const ang = a / 26 * 2 * Math.PI; pts.push([r * Math.cos(ang), y, r * Math.sin(ang)]); } } for (let ir = 0; ir <= 8; ir++) { const rr = R * ir / 8, n = Math.max(1, Math.round(26 * ir / 8)); for (let a = 0; a < n; a++) { const ang = a / n * 2 * Math.PI; pts.push([rr * Math.cos(ang), -H / 2, rr * Math.sin(ang)]); } } return fitUnit(pts); }
 function cylinderPts() { const pts = [], R = 0.62, H = 1.5; for (let iy = 0; iy <= 18; iy++) { const y = -H / 2 + H * iy / 18; for (let a = 0; a < 24; a++) { const ang = a / 24 * 2 * Math.PI; pts.push([R * Math.cos(ang), y, R * Math.sin(ang)]); } } for (const yy of [-H / 2, H / 2]) for (let ir = 0; ir <= 6; ir++) { const rr = R * ir / 6, n = Math.max(1, Math.round(24 * ir / 6)); for (let a = 0; a < n; a++) { const ang = a / n * 2 * Math.PI; pts.push([rr * Math.cos(ang), yy, rr * Math.sin(ang)]); } } return fitUnit(pts); }
@@ -611,6 +612,7 @@ const CAT_LABEL = { primitives: 'Primitives', mathematical: 'Mathematical', fun:
 const SHAPES = [
   // primitives
   { key: 'sphere', label: 'Sphere', sub: 'fibonacci lattice', cat: 'primitives', pts: spherePts() },
+  { key: 'dome', label: 'Dome', sub: 'hemisphere + base', cat: 'primitives', pts: domePts() },
   { key: 'cube', label: 'Cube', sub: 'six faces', cat: 'primitives', pts: cubePts() },
   { key: 'cone', label: 'Cone', sub: 'apex + disc', cat: 'primitives', pts: conePts() },
   { key: 'cylinder', label: 'Cylinder', sub: 'wall + caps', cat: 'primitives', pts: cylinderPts() },
