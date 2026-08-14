@@ -41,7 +41,11 @@
     .card { background: var(--card); border: 1px solid var(--card-border); border-radius: 8px; overflow: hidden; transition: border-color 0.2s; display: flex; flex-direction: column; cursor: pointer; }
     .card.static { cursor: default; }
     .card:hover { border-color: var(--card-hover); }
-    .card-preview { background: var(--preview); min-height: 160px; display: flex; align-items: center; justify-content: center; transition: background 0.25s; }
+    .card-preview { background: var(--preview); min-height: 160px; display: flex; align-items: center; justify-content: center; transition: background 0.25s; position: relative; }
+    .card-export { position: absolute; top: 6px; right: 6px; display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
+    .card:hover .card-export, .card-export:focus-within { opacity: 1; }
+    .xbtn { appearance: none; background: var(--seg-bg); color: var(--muted); border: 1px solid var(--seg-border); border-radius: 5px; font-family: inherit; font-size: 10px; padding: 2px 6px; cursor: pointer; transition: background 0.15s, color 0.15s; }
+    .xbtn:hover { color: var(--fg); background: var(--seg-active); }
     .card-preview canvas { display: block; }
     .card-body { padding: 0.8rem 1rem 0.9rem; text-align: center; }
     .card-title { font-size: 14px; font-weight: 500; color: var(--fg); }
@@ -732,11 +736,82 @@ const GAL_SIZE = 140, DET_SIZE = 128;
 
 // gallery is grouped by category; a tab row filters to one category (or All).
 let activeCat = 'all', galleryCells = [];
+// ---- export ----------------------------------------------------------------
+// A shape exports as portable point-cloud JSON, or a self-contained offline
+// .html that inlines the tiny render core + all nine treatments and bakes the
+// resolved points in — no build step, no deps, runs from file://.
+function download(filename, text, type) {
+  const blob = new Blob([text], { type: type || 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+function roundPt(p) { const r = (v) => Math.round(v * 1e4) / 1e4; return p.length > 3 ? [r(p[0]), r(p[1]), r(p[2]), p[3]] : [r(p[0]), r(p[1]), r(p[2])]; }
+function shapeToJSON(s) { return JSON.stringify({ format: 'half-dotted-shape', version: 1, key: s.key, label: s.label, cat: s.cat, flat: !!s.flat, points: s.pts.map(roundPt) }); }
+function exportShapeJSON(s) { download(`half-dotted-${s.key}.json`, shapeToJSON(s), 'application/json'); }
+function buildStandaloneHTML(s) {
+  const pts = JSON.stringify(s.pts.map(roundPt)), dark = !!currentDark;
+  const core = [makeProj, rotY, hsh, paint].map((f) => f.toString()).join('\n');                                   // pure top-level fns → inline-safe
+  const treatments = '[' + TREATMENTS.map((t) => `{key:${JSON.stringify(t.key)},label:${JSON.stringify(t.label)},fn:${t.fn.toString()}}`).join(',') + ']';
+  const bg = dark ? '#0c0c14' : '#f4f4ee', fg = dark ? '#c9c9d6' : '#33333a';
+  return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${s.label} — half-dotted standalone</title>
+<style>
+  html,body{margin:0;height:100%;background:${bg};color:${fg};font-family:ui-monospace,Menlo,Consolas,monospace;}
+  .wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:14px;}
+  .stage{width:min(72vmin,440px);height:min(72vmin,440px);}
+  canvas{width:100%;height:100%;display:block;}
+  .bar{display:flex;gap:8px;align-items:center;font-size:13px;}
+  select{background:${bg};color:${fg};border:1px solid ${fg}55;border-radius:6px;padding:4px 8px;font-family:inherit;font-size:13px;}
+  .cap{font-size:11px;opacity:0.6;letter-spacing:0.04em;}
+</style></head>
+<body>
+  <div class="wrap">
+    <div class="stage"><canvas id="c"></canvas></div>
+    <div class="bar"><span>treatment</span><select id="t"></select></div>
+    <div class="cap">${s.label} · half-dotted · runs offline, zero deps</div>
+  </div>
+<script>
+"use strict";
+${core}
+var radiusScale = ${radiusScale.toString()};
+var TREATMENTS = ${treatments};
+(function () {
+  var PTS = ${pts}, DARK = ${dark};
+  var cv = document.getElementById('c'), ctx = cv.getContext('2d'), DPR = Math.min(2, window.devicePixelRatio || 1);
+  var sel = document.getElementById('t'), cur = 0;
+  for (var i = 0; i < TREATMENTS.length; i++) { var o = document.createElement('option'); o.textContent = TREATMENTS[i].label; o.value = i; sel.appendChild(o); }
+  sel.addEventListener('change', function () { cur = +sel.value; });
+  var SIZE = 320;
+  function resize() { var r = cv.getBoundingClientRect(); SIZE = Math.max(80, Math.min(r.width, r.height)); cv.width = Math.round(SIZE * DPR); cv.height = Math.round(SIZE * DPR); }
+  window.addEventListener('resize', resize);
+  function draw(dots) {
+    var cx = SIZE / 2, cy = SIZE / 2, R = (SIZE / 2) * 0.72, rs = radiusScale(SIZE, 0.6), pt = makeProj(0, 0.42, cx, cy, R), out = [];
+    for (var k = 0; k < dots.length; k++) { var d = dots[k], pr = pt(d.x, d.y, d.z), depth = (pr[2] + 1) / 2, bm = d.b == null ? 1 : d.b;
+      var white = d.white != null ? d.white : 0.62 - 0.5 * depth, r = (d.r ? d.r : (0.5 + 1.5 * depth)) * rs, a = (d.a != null ? d.a : 0.45 + 0.55 * depth) * bm;
+      if (d.hi) { white = DARK ? 0.05 : 0.95; r = (0.75 + 1.5 * depth) * rs * 1.15; a = (0.72 + 0.28 * depth) * bm; }
+      out.push({ x: pr[0], y: pr[1], z: pr[2], r: r, white: white, a: a }); }
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, SIZE, SIZE); paint(ctx, out, DARK, 0.3);
+  }
+  function frame(ms) { draw(TREATMENTS[cur].fn(PTS, ms / 1000)); requestAnimationFrame(frame); }
+  resize(); requestAnimationFrame(frame);
+})();
+<\/script>
+</body></html>`;
+}
+function exportShapeHTML(s) { download(`half-dotted-${s.key}.html`, buildStandaloneHTML(s), 'text/html'); }
+
 function makeGalleryCard(s) {
   const card = document.createElement('div'); card.className = 'card';
   const preview = document.createElement('div'); preview.className = 'card-preview';
   const canvas = document.createElement('canvas'); canvas.width = Math.round(GAL_SIZE * DPR); canvas.height = Math.round(GAL_SIZE * DPR); canvas.style.width = GAL_SIZE + 'px'; canvas.style.height = GAL_SIZE + 'px';
   preview.appendChild(canvas);
+  const tools = document.createElement('div'); tools.className = 'card-export';
+  const mkBtn = (label, title, fn) => { const b = document.createElement('button'); b.className = 'xbtn'; b.textContent = label; b.title = title; b.addEventListener('click', (e) => { e.stopPropagation(); fn(s); }); return b; };
+  tools.appendChild(mkBtn('.json', 'Export point-cloud JSON', exportShapeJSON));
+  tools.appendChild(mkBtn('.html', 'Export standalone HTML', exportShapeHTML));
+  preview.appendChild(tools);
   const bodyEl = document.createElement('div'); bodyEl.className = 'card-body';
   bodyEl.innerHTML = `<div class="card-title">${s.label}</div><div class="card-sub">${s.sub}</div>`;
   card.appendChild(preview); card.appendChild(bodyEl);
