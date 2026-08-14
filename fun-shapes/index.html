@@ -33,7 +33,11 @@
     .seg button + button { border-left: 1px solid var(--seg-border); }
     .seg button.active { background: var(--seg-active); color: var(--fg); }
     .seg button:hover:not(.active) { color: var(--fg); }
+    .cat-nav { display: flex; justify-content: center; margin-top: 1.25rem; padding: 0 2rem; }
+    .cat-nav .seg { flex-wrap: wrap; }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 1px; max-width: 820px; margin: 1.5rem auto 0; padding: 0 2rem; }
+    .section-head { grid-column: 1 / -1; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 1.25rem 0 0.25rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--card-border); }
+    .section-head:first-child { margin-top: 0; }
     .card { background: var(--card); border: 1px solid var(--card-border); border-radius: 8px; overflow: hidden; transition: border-color 0.2s; display: flex; flex-direction: column; cursor: pointer; }
     .card.static { cursor: default; }
     .card:hover { border-color: var(--card-hover); }
@@ -68,6 +72,8 @@
     </div>
   </div>
 </div>
+
+<div class="cat-nav" id="cat-nav"><div class="seg" id="cat-tabs"></div></div>
 
 <div class="reduced-note">Reduced-motion is on — shapes show a single static frame.</div>
 
@@ -718,10 +724,13 @@ function drawDetail(cell, t) { drawDots(cell.ctx, cell.size, cell.treatment.fn(d
 
 // ---- views -----------------------------------------------------------------
 const gallery = document.getElementById('gallery'), detail = document.getElementById('detail');
+const catNav = document.getElementById('cat-nav'), catTabs = document.getElementById('cat-tabs');
 const titleEl = document.getElementById('title'), ledeEl = document.getElementById('lede'), crumbEl = document.getElementById('crumb');
 const GAL_SIZE = 140, DET_SIZE = 128;
 
-const galleryCells = SHAPES.map((s) => {
+// gallery is grouped by category; a tab row filters to one category (or All).
+let activeCat = 'all', galleryCells = [];
+function makeGalleryCard(s) {
   const card = document.createElement('div'); card.className = 'card';
   const preview = document.createElement('div'); preview.className = 'card-preview';
   const canvas = document.createElement('canvas'); canvas.width = Math.round(GAL_SIZE * DPR); canvas.height = Math.round(GAL_SIZE * DPR); canvas.style.width = GAL_SIZE + 'px'; canvas.style.height = GAL_SIZE + 'px';
@@ -731,8 +740,25 @@ const galleryCells = SHAPES.map((s) => {
   card.appendChild(preview); card.appendChild(bodyEl);
   card.addEventListener('click', () => { location.hash = s.key; });
   gallery.appendChild(card);
-  return { shape: s, ctx: canvas.getContext('2d'), size: GAL_SIZE };
-});
+  galleryCells.push({ shape: s, ctx: canvas.getContext('2d'), size: GAL_SIZE });
+}
+function buildGallery() {
+  gallery.innerHTML = ''; galleryCells = [];
+  for (const cat of CATEGORIES) {
+    if (activeCat !== 'all' && activeCat !== cat) continue;
+    const inCat = SHAPES.filter((s) => s.cat === cat); if (!inCat.length) continue;
+    const head = document.createElement('div'); head.className = 'section-head'; head.textContent = CAT_LABEL[cat]; gallery.appendChild(head);
+    for (const s of inCat) makeGalleryCard(s);
+  }
+  if (reduced) for (const c of galleryCells) drawGallery(c, 0.9);
+}
+function buildTabs() {
+  const mk = (key, label) => { const b = document.createElement('button'); b.textContent = label; if (key === activeCat) b.className = 'active';
+    b.addEventListener('click', () => { activeCat = key; catTabs.querySelectorAll('button').forEach((x) => x.classList.toggle('active', x === b)); buildGallery(); });
+    catTabs.appendChild(b); };
+  mk('all', 'All'); for (const c of CATEGORIES) mk(c, CAT_LABEL[c]);
+}
+buildTabs(); buildGallery();
 
 const detailCells = TREATMENTS.map((tr) => {
   const card = document.createElement('div'); card.className = 'card static';
@@ -748,17 +774,17 @@ const detailCells = TREATMENTS.map((tr) => {
 let mode = 'gallery', detailShape = null;
 function showGallery() {
   mode = 'gallery'; detailShape = null;
-  gallery.style.display = 'grid'; detail.style.display = 'none';
-  titleEl.textContent = 'Fun Shapes';
-  ledeEl.textContent = 'Playful bodies drawn with the same dotted-halftone technique as the orbs. Click any shape to explore it under nine animation treatments.';
+  gallery.style.display = 'grid'; detail.style.display = 'none'; catNav.style.display = 'flex';
+  titleEl.textContent = 'Half-dotted';
+  ledeEl.textContent = 'Dotted-halftone shape bodies, organized by type — primitives, mathematical, fun, organic, and origami. Click any shape to explore it under nine animation treatments.';
   crumbEl.innerHTML = '<a href="../index.html">&larr; braille lab</a>';
 }
 function showDetail(s) {
   mode = 'detail'; detailShape = s;
-  gallery.style.display = 'none'; detail.style.display = 'grid';
+  gallery.style.display = 'none'; detail.style.display = 'grid'; catNav.style.display = 'none';
   titleEl.textContent = s.label;
   ledeEl.textContent = 'The same body under nine animation treatments — spin, breathe, wave, twinkle, scatter, twist, jelly, orbit, and draw-on.';
-  crumbEl.innerHTML = '<span class="back">&larr; all fun shapes</span>';
+  crumbEl.innerHTML = '<span class="back">&larr; all shapes</span>';
   crumbEl.querySelector('.back').addEventListener('click', () => { location.hash = ''; });
   if (reduced) for (const c of detailCells) drawDetail(c, 0.9);
 }
