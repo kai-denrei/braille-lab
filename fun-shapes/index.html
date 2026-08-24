@@ -542,6 +542,112 @@ function bulletPts() {
   return fitUnit(pts);
 }
 
+// ---- portals ---------------------------------------------------------------
+// stargate — torus ring in the x-y plane + 9 chevron studs. No fitUnit: the
+// event-horizon feature must share exact coordinates with the ring.
+function stargatePts() {
+  const pts = [], R = 0.76, tr = 0.14;
+  for (let i = 0; i < 34; i++) { const th = i / 34 * 2 * Math.PI; for (let j = 0; j < 12; j++) { const ph = j / 12 * 2 * Math.PI, rr = R + tr * Math.cos(ph); pts.push([rr * Math.cos(th), rr * Math.sin(th), tr * Math.sin(ph)]); } }
+  for (let k = 0; k < 9; k++) { const th = k / 9 * 2 * Math.PI + Math.PI / 2; for (const [dr, dt] of [[0.05, 0], [0.02, 0.045], [0.02, -0.045]]) { const rr = R + tr + dr; pts.push([rr * Math.cos(th + dt), rr * Math.sin(th + dt), 0, 1]); } }
+  return pts;
+}
+// stargate's rippling event horizon: concentric shimmer, tracks the gallery
+// rotation (rotY t*0.45) so the disc stays inside the ring
+function stargateFeatures(t) {
+  const dots = [], Rh = 0.58;
+  for (let ir = 1; ir <= 6; ir++) { const rr = Rh * ir / 6, n = Math.round(5 + 21 * ir / 6);
+    for (let a = 0; a < n; a++) { const ang = a / n * 2 * Math.PI, sh = 0.5 + 0.5 * Math.sin(t * 2 + rr * 5 + ang * 3);
+      const q = rotY([rr * Math.cos(ang), rr * Math.sin(ang), 0.02 * Math.sin(t * 3 + rr * 9)], t * 0.45);
+      dots.push({ x: q[0], y: q[1], z: q[2], hi: sh > 0.75 ? 1 : 0, b: 0.3 + 0.7 * sh });
+    }
+  }
+  return dots;
+}
+// warp ring — thin double ring + streamlines converging through the center
+function warpringPts() {
+  const pts = [], R = 0.62;
+  for (let i = 0; i < 40; i++) { const th = i / 40 * 2 * Math.PI; for (const dz of [-0.03, 0.03]) pts.push([R * Math.cos(th), R * Math.sin(th), dz]); }
+  for (let k = 0; k < 8; k++) {
+    const th = k / 8 * 2 * Math.PI + 0.3, r0 = R * 0.55 * (0.4 + 0.6 * hsh(k + 1));
+    for (let s = 0; s <= 16; s++) { const f = s / 16, z = -1 + 2 * f; if (Math.abs(z) > 0.5 && s % 2) continue; const r = r0 * (0.35 + 0.65 * Math.abs(z)); pts.push([r * Math.cos(th + z * 0.8), r * Math.sin(th + z * 0.8), z * 0.78]); }
+    pts.push([r0 * 0.35 * Math.cos(th), r0 * 0.35 * Math.sin(th), 0, 1]);
+  }
+  return fitUnit(pts);
+}
+// wormhole — hyperboloid of revolution: flared mouths, pinched throat
+function wormholePts() {
+  const pts = [], r0 = 0.28, k = 0.9;
+  for (let iy = 0; iy <= 22; iy++) { const y = -1 + 2 * iy / 22, r = Math.hypot(r0, y * k), n = Math.max(8, Math.round(26 * r)); for (let a = 0; a < n; a++) { const ang = a / n * 2 * Math.PI + iy * 0.13; pts.push([r * Math.cos(ang), y, r * Math.sin(ang)]); } }
+  return fitUnit(pts);
+}
+// vortex — conical spiral funnel, bright popped center. No fitUnit: the swirl
+// feature shares coordinates. Static pts = faint base spiral + rim ring.
+function vortexPts() {
+  const pts = [];
+  for (let a = 0; a < 40; a++) { const ang = a / 40 * 2 * Math.PI; pts.push([0.88 * Math.cos(ang), 0.38, 0.88 * Math.sin(ang)]); }
+  for (let arm = 0; arm < 2; arm++) for (let i = 0; i < 60; i++) {
+    const f = i / 59, th = f * 4 * 2 * Math.PI + arm * Math.PI, r = 0.06 + 0.82 * Math.pow(1 - f, 1.15), y = 0.38 - 0.88 * f;
+    pts.push([r * Math.cos(th), y, r * Math.sin(th)]);
+  }
+  pts.push([0, -0.52, 0, 1]);
+  return pts;
+}
+// vortex swirl: same spiral re-emitted with an extra angular offset beyond the
+// gallery's rotY spin (about the same axis, so a plain theta offset suffices)
+function vortexFeatures(t) {
+  const dots = [];
+  for (let arm = 0; arm < 2; arm++) for (let i = 0; i < 60; i++) {
+    const f = i / 59, th = f * 4 * 2 * Math.PI + arm * Math.PI - t * 1.2, r = 0.06 + 0.82 * Math.pow(1 - f, 1.15), y = 0.38 - 0.88 * f;
+    dots.push({ x: r * Math.cos(th), y, z: r * Math.sin(th), hi: f > 0.82 ? 1 : 0, b: 0.35 + 0.65 * f });
+  }
+  return dots;
+}
+// torii gate — two leaning pillars, curved upswept kasagi, straight nuki beam
+function toriiPts() {
+  const pts = [];
+  for (const sx of [-1, 1]) for (let iy = 0; iy <= 16; iy++) { const f = iy / 16, y = -0.95 + f * 1.55, x = sx * (0.58 - 0.07 * f); for (let a = 0; a < 10; a++) { const ang = a / 10 * 2 * Math.PI; pts.push([x + 0.07 * Math.cos(ang), y, 0.07 * Math.sin(ang)]); } }
+  for (let i = 0; i <= 30; i++) { const f = i / 30, x = -0.9 + 1.8 * f, y = 0.7 + 0.16 * Math.pow(Math.abs(x) / 0.9, 2.2); for (const dz of [-0.06, 0, 0.06]) pts.push([x, y, dz]); pts.push([x, y + 0.06, 0]); }
+  for (let i = 0; i <= 24; i++) { const x = -0.74 + 1.48 * i / 24; for (const dz of [-0.045, 0.045]) pts.push([x, 0.3, dz]); pts.push([x, 0.36, 0]); }
+  return fitUnit(pts);
+}
+// moon gate — thin wall slab with a circular void, rim highlighted
+function moongatePts() {
+  const pts = [], hole = 0.5, W = 0.92, D = 0.06;
+  for (const z of [-D, D]) for (let ix = 0; ix <= 18; ix++) for (let iy = 0; iy <= 18; iy++) {
+    const x = -W + 2 * W * ix / 18, y = -W + 2 * W * iy / 18;
+    if (Math.hypot(x, y) < hole + 0.04) continue;
+    pts.push([x, y, z]);
+  }
+  for (let a = 0; a < 42; a++) { const ang = a / 42 * 2 * Math.PI, x = hole * Math.cos(ang), y = hole * Math.sin(ang); pts.push([x, y, -D], [x, y, D], [x, y, 0, 1]); }
+  return fitUnit(pts);
+}
+// tesseract door — nested wire cubes + corner connectors, popped vertices
+function tesseractPts() {
+  const pts = [], cube = (s) => { const v = []; for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) v.push([sx * s, sy * s, sz * s]); return v; };
+  const V1 = cube(0.62), V2 = cube(0.3), E = [[0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7], [0, 4], [1, 5], [2, 6], [3, 7]];
+  for (const [a, b] of E) { traceEdge(pts, V1[a], V1[b], 13); traceEdge(pts, V2[a], V2[b], 7); }
+  for (let i = 0; i < 8; i++) { traceEdge(pts, V1[i], V2[i], 7); pts.push([...V1[i], 1], [...V2[i], 1]); }
+  return fitUnit(pts);
+}
+// rift — flat jagged tear; the spine is shared with the pulse feature. No
+// fitUnit: feature dots must match the tear's coordinates exactly.
+function riftSpineX(fy) { const NZ = 9, u = fy * NZ, i = Math.min(NZ - 1, Math.floor(u)), f = u - i, xi = (k) => (k === 0 || k === NZ) ? 0 : (hsh(k * 3 + 1) - 0.5) * 0.36; return xi(i) * (1 - f) + xi(i + 1) * f; }
+function riftPts() {
+  const pts = [];
+  for (let s = 0; s <= 72; s++) { const fy = s / 72, y = -0.9 + 1.8 * fy, x = riftSpineX(fy), w = 0.16 * Math.sin(Math.PI * fy) + 0.01; pts.push([x - w, y, 0, 1], [x + w, y, 0, 1]); }
+  return pts;
+}
+// rift pulse: dots bleeding out of the crack, tracking the flat in-plane spin
+function riftFeatures(t) {
+  const dots = [], a = t * 0.5, ca = Math.cos(a), sa = Math.sin(a), pulse = 0.5 + 0.5 * Math.sin(t * 1.4);
+  for (let i = 0; i < 26; i++) {
+    const fy = hsh(i * 7 + 2), y = -0.85 + 1.7 * fy, side = i % 2 ? 1 : -1, w = 0.16 * Math.sin(Math.PI * ((y + 0.9) / 1.8)) + 0.01;
+    const d = (0.06 + 0.3 * hsh(i * 13 + 5)) * pulse, x = riftSpineX((y + 0.9) / 1.8) + side * (w + d), yy = y + (hsh(i * 5 + 9) - 0.5) * 0.08;
+    dots.push({ x: x * ca - yy * sa, y: x * sa + yy * ca, z: 0.02, hi: 1, b: 0.15 + 0.85 * pulse * (1 - d * 2) });
+  }
+  return dots;
+}
+
 // ---- primitives ------------------------------------------------------------
 // shared facet helpers (reused by origami): fill a triangle, trace an edge.
 function fillTri(pts, A, B, C, n) { for (let i = 0; i <= n; i++) for (let j = 0; j <= n - i; j++) { const u = i / n, v = j / n, w = 1 - u - v; pts.push([A[0] * w + B[0] * u + C[0] * v, A[1] * w + B[1] * u + C[1] * v, A[2] * w + B[2] * u + C[2] * v]); } }
@@ -621,8 +727,8 @@ function dragonPts() {
 }
 
 // ---- shapes ----------------------------------------------------------------
-const CATEGORIES = ['primitives', 'mathematical', 'fun', 'organic', 'origami'];
-const CAT_LABEL = { primitives: 'Primitives', mathematical: 'Mathematical', fun: 'Fun', organic: 'Organic', origami: 'Origami' };
+const CATEGORIES = ['primitives', 'mathematical', 'fun', 'organic', 'origami', 'portals'];
+const CAT_LABEL = { primitives: 'Primitives', mathematical: 'Mathematical', fun: 'Fun', organic: 'Organic', origami: 'Origami', portals: 'Portals' };
 const SHAPES = [
   // primitives
   { key: 'sphere', label: 'Sphere', sub: 'fibonacci lattice', cat: 'primitives', pts: spherePts() },
@@ -694,7 +800,16 @@ const SHAPES = [
   { key: 'shuriken', label: 'Shuriken', sub: 'throwing star · flat', cat: 'origami', pts: shurikenPts(), flat: true },
   { key: 'sailboat', label: 'Sailboat', sub: 'hull + sails', cat: 'origami', pts: sailboatPts() },
   { key: 'crane', label: 'Crane', sub: 'wings + neck + tail', cat: 'origami', pts: cranePts() },
-  { key: 'dragon', label: 'Dragon', sub: 'body + wings + tail', cat: 'origami', pts: dragonPts() }
+  { key: 'dragon', label: 'Dragon', sub: 'body + wings + tail', cat: 'origami', pts: dragonPts() },
+  // portals
+  { key: 'stargate', label: 'Stargate', sub: 'chevrons + horizon', cat: 'portals', pts: stargatePts(), features: stargateFeatures },
+  { key: 'warpring', label: 'Warp Ring', sub: 'flow through', cat: 'portals', pts: warpringPts() },
+  { key: 'wormhole', label: 'Wormhole', sub: 'hyperboloid throat', cat: 'portals', pts: wormholePts() },
+  { key: 'vortex', label: 'Vortex', sub: 'swirl · inward', cat: 'portals', pts: vortexPts(), features: vortexFeatures },
+  { key: 'torii', label: 'Torii Gate', sub: 'pillars + kasagi', cat: 'portals', pts: toriiPts() },
+  { key: 'moongate', label: 'Moon Gate', sub: 'wall + void', cat: 'portals', pts: moongatePts() },
+  { key: 'tesseract', label: 'Tesseract Door', sub: 'nested cubes', cat: 'portals', pts: tesseractPts() },
+  { key: 'rift', label: 'Rift', sub: 'tear · pulses', cat: 'portals', pts: riftPts(), flat: true, features: riftFeatures }
 ];
 const SHAPE_BY_KEY = Object.fromEntries(SHAPES.map((s) => [s.key, s]));
 
