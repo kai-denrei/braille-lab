@@ -912,6 +912,129 @@ function armGripperPts() {
   return fitUnit(pts);
 }
 
+// ---- shields ---------------------------------------------------------------
+// fill a shield face in x-y (nx*ny grid); auto-highlight boundary cells as the
+// rim; dome(x,y) optionally displaces z (boss / curvature).
+function shieldFace(pts, hw, hh, nx, ny, inside, dome) {
+  const dx = 2 * hw / nx, dy = 2 * hh / ny;
+  for (let i = 0; i <= nx; i++) for (let j = 0; j <= ny; j++) {
+    const x = -hw + dx * i, y = -hh + dy * j;
+    if (!inside(x, y)) continue;
+    const edge = !inside(x - dx, y) || !inside(x + dx, y) || !inside(x, y - dy) || !inside(x, y + dy);
+    const z = dome ? dome(x, y) : 0;
+    pts.push(edge ? [x, y, z, 1] : [x, y, z]);
+  }
+}
+// raised round boss bulging toward +z, with a highlighted apex
+function boss(pts, cx, cy, R, H) {
+  for (let ir = 0; ir <= 5; ir++) { const rr = R * ir / 5, z = H * Math.cos(Math.PI / 2 * ir / 5), n = Math.max(1, Math.round(16 * ir / 5)); for (let a = 0; a < n; a++) { const ang = a / n * 2 * Math.PI; pts.push([cx + rr * Math.cos(ang), cy + rr * Math.sin(ang), z]); } }
+  pts.push([cx, cy, H, 1]);
+}
+// 1. heater — knight's shield: rounded top, sides taper to a point
+function shHeaterPts() {
+  const pts = [], hw = 0.72, hh = 0.92;
+  const inside = (x, y) => { if (y > 0.9 || y < -0.92) return false; const hwy = y >= 0.45 ? hw : hw * Math.sqrt(Math.max(0, (y + 0.92) / 1.37)); if (Math.abs(x) > hwy) return false; const yTop = 0.9 - 0.1 * (x / hw) ** 2 - (Math.abs(x) > hw - 0.2 ? (Math.abs(x) - (hw - 0.2)) * 1.6 : 0); return y <= yTop; };
+  shieldFace(pts, hw, hh, 30, 40, inside, (x, y) => 0.12 * Math.max(0, 1 - (x * x + (y * 0.7) ** 2) / 0.5));
+  boss(pts, 0, 0.05, 0.12, 0.18);
+  return fitUnit(pts);
+}
+// 2. round — viking disc: concentric planks, rim studs, domed central boss
+function shRoundPts() {
+  const pts = [], R = 0.92;
+  shieldFace(pts, R, R, 36, 36, (x, y) => x * x + y * y <= R * R, (x, y) => -0.12 * (x * x + y * y) / (R * R) + 0.12);
+  for (const rr of [0.32, 0.54, 0.76]) for (let a = 0; a < 60; a++) { const ang = a / 60 * 2 * Math.PI; pts.push([rr * Math.cos(ang), rr * Math.sin(ang), 0.12 - 0.12 * rr * rr / (R * R), 1]); } // plank rings
+  for (let a = 0; a < 20; a++) { const ang = a / 20 * 2 * Math.PI; pts.push([0.86 * Math.cos(ang), 0.86 * Math.sin(ang), 0.02, 1]); } // rim studs
+  boss(pts, 0, 0, 0.16, 0.24);
+  return fitUnit(pts);
+}
+// 3. kite — norman almond: rounded top, long taper to a bottom point
+function shKitePts() {
+  const pts = [], hw = 0.62;
+  const inside = (x, y) => { if (y > 0.92 || y < -0.95) return false; const hwy = y >= 0 ? hw * Math.sqrt(Math.max(0, 1 - (y / 0.92) ** 2)) : hw * Math.pow(Math.max(0, (y + 0.95) / 0.95), 0.75); return Math.abs(x) <= hwy; };
+  shieldFace(pts, hw, 0.95, 26, 44, inside, (x, y) => 0.14 * Math.max(0, 1 - (x / hw) ** 2) * Math.max(0, 1 - (y / 0.95) ** 2));
+  for (let j = 0; j <= 30; j++) { const y = 0.6 - j / 30 * 1.5; pts.push([0, y, 0.14 * Math.max(0, 1 - (y / 0.95) ** 2), 1]); } // central ridge
+  boss(pts, 0, 0.5, 0.1, 0.16);
+  return fitUnit(pts);
+}
+// 4. tower — roman scutum: tall rounded rectangle, curved, horizontal umbo boss
+function shTowerPts() {
+  const pts = [], hw = 0.56, hh = 0.94, rc = 0.18;
+  const inside = (x, y) => { const ax = Math.abs(x), ay = Math.abs(y); if (ax > hw || ay > hh) return false; if (ax > hw - rc && ay > hh - rc) return Math.hypot(ax - (hw - rc), ay - (hh - rc)) <= rc; return true; };
+  shieldFace(pts, hw, hh, 26, 44, inside, (x) => 0.26 * Math.max(0, 1 - (x / hw) ** 2)); // horizontal cylindrical curve
+  for (let i = -1; i <= 1; i += 2) for (let a = 0; a < 14; a++) { const ang = a / 14 * 2 * Math.PI; pts.push([0.18 * Math.cos(ang), 0.0 + 0.1 * Math.sin(ang), 0.26 + 0.05 * i, 1]); } // umbo band
+  boss(pts, 0, 0, 0.14, 0.34);
+  return fitUnit(pts);
+}
+// 5. buckler — small round shield dominated by a tall central spike
+function shBucklerPts() {
+  const pts = [], R = 0.64;
+  shieldFace(pts, R, R, 30, 30, (x, y) => x * x + y * y <= R * R, null);              // clean flat disc
+  for (let a = 0; a < 26; a++) { const ang = a / 26 * 2 * Math.PI; pts.push([R * 0.95 * Math.cos(ang), R * 0.95 * Math.sin(ang), 0.02, 1]); } // rivet rim
+  for (let iy = 0; iy <= 16; iy++) { const f = iy / 16, z = f * 0.7, rr = 0.2 * (1 - f); for (let a = 0; a < 12; a++) { const ang = a / 12 * 2 * Math.PI; pts.push([rr * Math.cos(ang), rr * Math.sin(ang), z]); } } // tall central spike
+  pts.push([0, 0, 0.7, 1]);
+  return fitUnit(pts);
+}
+// 6. riot — modern police: rounded rectangle, viewport frame, curved
+function shRiotPts() {
+  const pts = [], hw = 0.6, hh = 0.92, rc = 0.16;
+  const inside = (x, y) => { const ax = Math.abs(x), ay = Math.abs(y); if (ax > hw || ay > hh) return false; if (ax > hw - rc && ay > hh - rc) return Math.hypot(ax - (hw - rc), ay - (hh - rc)) <= rc; return true; };
+  shieldFace(pts, hw, hh, 28, 44, inside, (x) => 0.2 * Math.max(0, 1 - (x / hw) ** 2));
+  for (let i = 0; i <= 24; i++) { const x = -0.42 + i / 24 * 0.84; for (const y of [0.36, 0.66]) pts.push([x, y, 0.2 * Math.max(0, 1 - (x / hw) ** 2), 1]); } // viewport top/bottom
+  for (const x of [-0.42, 0.42]) for (let j = 0; j <= 8; j++) { const y = 0.36 + j / 8 * 0.3; pts.push([x, y, 0.2 * Math.max(0, 1 - (x / hw) ** 2), 1]); } // viewport sides
+  return fitUnit(pts);
+}
+// 7. ballistic — tactical: angular cut corners, narrow vision slit near the top
+function shBallisticPts() {
+  const pts = [], hw = 0.58, hh = 0.9, cut = 0.26;
+  const inside = (x, y) => { const ax = Math.abs(x); if (ax > hw || y > hh || y < -hh) return false; if (y > hh - cut) return ax <= hw - (y - (hh - cut)) / cut * (hw - 0.18); return true; }; // top corners chamfered
+  shieldFace(pts, hw, hh, 28, 44, inside, (x) => 0.16 * Math.max(0, 1 - (x / hw) ** 2));
+  for (let i = 0; i <= 20; i++) { const x = -0.34 + i / 20 * 0.68; for (const y of [0.52, 0.62]) pts.push([x, y, 0.16 * Math.max(0, 1 - (x / hw) ** 2), 1]); } // vision slit
+  return fitUnit(pts);
+}
+// 8. energy dome — hemispherical force field: glowing nodes + base rim
+function shEnergyDomePts() {
+  const pts = [], R = 0.95;
+  for (let i = 0; i < 520; i++) { const d = fibDir(i, 520); if (d[1] < -0.05) continue; pts.push([d[0] * R, -0.35 + d[1] * R, d[2] * R]); }
+  for (let i = 0; i < 70; i++) { const d = fibDir(i, 70); if (d[1] < -0.05) continue; pts.push([d[0] * R, -0.35 + d[1] * R, d[2] * R, 1]); } // glowing nodes
+  for (let a = 0; a < 48; a++) { const ang = a / 48 * 2 * Math.PI; pts.push([R * Math.cos(ang), -0.35, R * Math.sin(ang), 1]); } // base rim
+  return fitUnit(pts);
+}
+// 9. hex barrier — flat energy wall panel tessellated with hexagons, glowing edge
+function shHexBarrierPts() {
+  const pts = [], hw = 0.78, hh = 0.94, s = 0.2;
+  const inside = (x, y) => Math.abs(x) <= hw && Math.abs(y) <= hh;
+  for (let row = -6; row <= 6; row++) for (let col = -6; col <= 6; col++) {
+    const cx = col * s * 1.5, cy = row * s * Math.sqrt(3) + (col % 2 ? s * Math.sqrt(3) / 2 : 0);
+    for (let k = 0; k < 6; k++) { const a1 = k / 6 * 2 * Math.PI, a2 = (k + 1) / 6 * 2 * Math.PI, ax = cx + s * Math.cos(a1), ay = cy + s * Math.sin(a1), bx = cx + s * Math.cos(a2), by = cy + s * Math.sin(a2); for (let t = 0; t <= 3; t++) { const f = t / 3, x = ax + (bx - ax) * f, y = ay + (by - ay) * f; if (inside(x, y)) pts.push([x, y, 0.05 * Math.sin(x * 4 + y * 4)]); } }
+  }
+  for (let i = 0; i <= 40; i++) for (const sx of [-1, 1]) pts.push([sx * hw, -hh + i / 40 * 2 * hh, 0, 1]);
+  for (let i = 0; i <= 34; i++) for (const sy of [-1, 1]) pts.push([-hw + i / 34 * 2 * hw, sy * hh, 0, 1]); // glowing border
+  return fitUnit(pts);
+}
+// 10. jersey barrier — concrete road barrier: kinked trapezoid, extruded long
+function shJerseyPts() {
+  const pts = [], L = 0.98;
+  const prof = (y) => { if (y < -0.3) return 0.5 - (y + 0.5) * 0.3; if (y < 0.0) return 0.42 - (y + 0.3) * 0.9; return 0.15 - y * 0.03; }; // half-width vs height (jersey kink)
+  for (let iy = 0; iy <= 26; iy++) { const y = -0.5 + iy / 26 * 1.0, hw = Math.max(0.08, prof(y)); for (let iz = 0; iz <= 30; iz++) { const z = -L + iz / 30 * 2 * L; for (const sx of [-1, 1]) pts.push([sx * hw, y, z]); pts.push([0, y, z]); } } // sides + top ridge
+  for (let iz = 0; iz <= 30; iz++) { const z = -L + iz / 30 * 2 * L; for (let ix = -4; ix <= 4; ix++) pts.push([ix / 4 * 0.5, -0.5, z]); } // base
+  for (const zc of [-L, L]) for (let iy = 0; iy <= 24; iy++) { const y = -0.5 + iy / 24, hw = Math.max(0.08, prof(y)); for (let ix = 0; ix <= 16; ix++) { const x = -0.5 + ix / 16; if (Math.abs(x) <= hw) pts.push([x, y, zc]); } } // solid end caps
+  return fitUnit(pts);
+}
+// 11. czech hedgehog — anti-tank obstacle: three thick beams crossed at center
+function shHedgehogPts() {
+  const pts = [], L = 0.92, dirs = [normV([1, 0.5, 0.3]), normV([-0.4, 0.5, 1]), normV([-0.5, 0.9, -0.7])];
+  for (const d of dirs) { strut(pts, [-d[0] * L, -d[1] * L, -d[2] * L], [d[0] * L, d[1] * L, d[2] * L], 0.06); pts.push([d[0] * L, d[1] * L, d[2] * L, 1], [-d[0] * L, -d[1] * L, -d[2] * L, 1]); }
+  for (let i = 0; i < 30; i++) { const d = fibDir(i, 30); pts.push([d[0] * 0.14, d[1] * 0.14, d[2] * 0.14]); } // center gusset
+  return fitUnit(pts);
+}
+// 12. sandbag wall — stacked ovoid bags in offset courses
+function shSandbagsPts() {
+  const pts = [], bag = (cx, cy) => { for (let i = 0; i < 40; i++) { const d = fibDir(i, 40); pts.push([cx + d[0] * 0.24, cy + d[1] * 0.14, d[2] * 0.2]); } };
+  const rows = [-0.7, -0.36, -0.02, 0.32, 0.66];
+  for (let r = 0; r < rows.length; r++) { const off = r % 2 ? 0.24 : 0, n = r % 2 ? 3 : 4; for (let b = 0; b < n; b++) { const cx = -0.72 + off + b * 0.48; bag(cx, rows[r]); } }
+  return fitUnit(pts);
+}
+
 // ---- portals ---------------------------------------------------------------
 // stargate — torus ring in the x-y plane + 9 chevron studs. No fitUnit: the
 // event-horizon feature must share exact coordinates with the ring.
@@ -1097,8 +1220,8 @@ function dragonPts() {
 }
 
 // ---- shapes ----------------------------------------------------------------
-const CATEGORIES = ['primitives', 'mathematical', 'fun', 'weapons', 'sentries', 'arms', 'organic', 'origami', 'portals'];
-const CAT_LABEL = { primitives: 'Primitives', mathematical: 'Mathematical', fun: 'Fun', weapons: 'Weapons', sentries: 'Sentries', arms: 'Robotic Arms', organic: 'Organic', origami: 'Origami', portals: 'Portals' };
+const CATEGORIES = ['primitives', 'mathematical', 'fun', 'weapons', 'sentries', 'arms', 'shields', 'organic', 'origami', 'portals'];
+const CAT_LABEL = { primitives: 'Primitives', mathematical: 'Mathematical', fun: 'Fun', weapons: 'Weapons', sentries: 'Sentries', arms: 'Robotic Arms', shields: 'Shields', organic: 'Organic', origami: 'Origami', portals: 'Portals' };
 const SHAPES = [
   // primitives
   { key: 'sphere', label: 'Sphere', sub: 'fibonacci lattice', cat: 'primitives', pts: spherePts() },
@@ -1210,7 +1333,20 @@ const SHAPES = [
   { key: 'arm-gantry', label: 'Gantry', sub: 'bridge + Z-axis', cat: 'arms', pts: armGantryPts() },
   { key: 'arm-palletizer', label: 'Palletizer', sub: 'parallelogram linkage', cat: 'arms', pts: armPalletizerPts() },
   { key: 'arm-welder', label: 'Welding Arm', sub: 'torch + cable', cat: 'arms', pts: armWelderPts() },
-  { key: 'arm-gripper', label: 'Gripper Arm', sub: 'two-finger claw', cat: 'arms', pts: armGripperPts() }
+  { key: 'arm-gripper', label: 'Gripper Arm', sub: 'two-finger claw', cat: 'arms', pts: armGripperPts() },
+  // shields
+  { key: 'shield-heater', label: 'Heater Shield', sub: 'knight · flat', cat: 'shields', pts: shHeaterPts(), flat: true },
+  { key: 'shield-round', label: 'Round Shield', sub: 'viking · boss', cat: 'shields', pts: shRoundPts(), flat: true },
+  { key: 'shield-kite', label: 'Kite Shield', sub: 'norman almond', cat: 'shields', pts: shKitePts(), flat: true },
+  { key: 'shield-tower', label: 'Tower Shield', sub: 'roman scutum', cat: 'shields', pts: shTowerPts(), flat: true },
+  { key: 'shield-buckler', label: 'Buckler', sub: 'spiked · small', cat: 'shields', pts: shBucklerPts(), flat: true },
+  { key: 'shield-riot', label: 'Riot Shield', sub: 'police · viewport', cat: 'shields', pts: shRiotPts(), flat: true },
+  { key: 'shield-ballistic', label: 'Ballistic Shield', sub: 'tactical · slit', cat: 'shields', pts: shBallisticPts(), flat: true },
+  { key: 'shield-energy', label: 'Energy Dome', sub: 'force field', cat: 'shields', pts: shEnergyDomePts() },
+  { key: 'shield-hex', label: 'Hex Barrier', sub: 'energy wall · flat', cat: 'shields', pts: shHexBarrierPts(), flat: true },
+  { key: 'shield-jersey', label: 'Jersey Barrier', sub: 'concrete · road', cat: 'shields', pts: shJerseyPts() },
+  { key: 'shield-hedgehog', label: 'Czech Hedgehog', sub: 'anti-tank', cat: 'shields', pts: shHedgehogPts() },
+  { key: 'shield-sandbags', label: 'Sandbag Wall', sub: 'stacked courses', cat: 'shields', pts: shSandbagsPts() }
 ];
 const SHAPE_BY_KEY = Object.fromEntries(SHAPES.map((s) => [s.key, s]));
 
