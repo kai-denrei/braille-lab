@@ -1577,25 +1577,35 @@ const SHAPES = [
   { key: 'orb-helix', label: 'Sphere Helix', sub: 'spiral of orbs', cat: 'spheres', pts: orbHelixPts() },
   { key: 'orb-molecule', label: 'Molecule', sub: 'core + satellites', cat: 'spheres', pts: orbMoleculePts() },
   // trees
-  { key: 'tree-pine', label: 'Pine', sub: 'tiered conifer', cat: 'trees', pts: treePinePts() },
-  { key: 'tree-parasol', label: 'Parasol Pine', sub: 'umbrella canopy', cat: 'trees', pts: treeParasolPts() },
-  { key: 'tree-oak', label: 'Oak', sub: 'broad canopy', cat: 'trees', pts: treeOakPts() },
-  { key: 'tree-palm', label: 'Palm', sub: 'curved · fronds', cat: 'trees', pts: treePalmPts() },
-  { key: 'tree-birch', label: 'Birch', sub: 'slender · airy', cat: 'trees', pts: treeBirchPts() },
-  { key: 'tree-willow', label: 'Willow', sub: 'drooping strands', cat: 'trees', pts: treeWillowPts() },
-  { key: 'tree-cypress', label: 'Cypress', sub: 'flame column', cat: 'trees', pts: treeCypressPts() },
-  { key: 'tree-spruce', label: 'Spruce', sub: 'narrow cone', cat: 'trees', pts: treeSprucePts() },
-  { key: 'tree-baobab', label: 'Baobab', sub: 'bottle trunk', cat: 'trees', pts: treeBaobabPts() },
-  { key: 'tree-cherry', label: 'Cherry Blossom', sub: 'speckled canopy', cat: 'trees', pts: treeCherryPts() },
-  { key: 'tree-bonsai', label: 'Bonsai', sub: 'twisted · pads', cat: 'trees', pts: treeBonsaiPts() },
-  { key: 'tree-bare', label: 'Bare Tree', sub: 'branching · leafless', cat: 'trees', pts: treeBarePts() }
+  { key: 'tree-pine', label: 'Pine', sub: 'tiered conifer', cat: 'trees', sway: true, pts: treePinePts() },
+  { key: 'tree-parasol', label: 'Parasol Pine', sub: 'umbrella canopy', cat: 'trees', sway: true, pts: treeParasolPts() },
+  { key: 'tree-oak', label: 'Oak', sub: 'broad canopy', cat: 'trees', sway: true, pts: treeOakPts() },
+  { key: 'tree-palm', label: 'Palm', sub: 'curved · fronds', cat: 'trees', sway: true, pts: treePalmPts() },
+  { key: 'tree-birch', label: 'Birch', sub: 'slender · airy', cat: 'trees', sway: true, pts: treeBirchPts() },
+  { key: 'tree-willow', label: 'Willow', sub: 'drooping strands', cat: 'trees', sway: true, pts: treeWillowPts() },
+  { key: 'tree-cypress', label: 'Cypress', sub: 'flame column', cat: 'trees', sway: true, pts: treeCypressPts() },
+  { key: 'tree-spruce', label: 'Spruce', sub: 'narrow cone', cat: 'trees', sway: true, pts: treeSprucePts() },
+  { key: 'tree-baobab', label: 'Baobab', sub: 'bottle trunk', cat: 'trees', sway: true, pts: treeBaobabPts() },
+  { key: 'tree-cherry', label: 'Cherry Blossom', sub: 'speckled canopy', cat: 'trees', sway: true, pts: treeCherryPts() },
+  { key: 'tree-bonsai', label: 'Bonsai', sub: 'twisted · pads', cat: 'trees', sway: true, pts: treeBonsaiPts() },
+  { key: 'tree-bare', label: 'Bare Tree', sub: 'branching · leafless', cat: 'trees', sway: true, pts: treeBarePts() }
 ];
 const SHAPE_BY_KEY = Object.fromEntries(SHAPES.map((s) => [s.key, s]));
 
 // ---- animation treatments (any point cloud) --------------------------------
 // each returns [{x,y,z,b}] in object space; the renderer projects + depth-shades.
+// wind sway shared by gallery trees + the Sway treatment: trunk anchored at the
+// base (h~0), canopy sweeps with the gust (h~1), branch tips flutter; a slow
+// turn keeps the 3D readable.
+function swayXf(p, t) {
+  const h = Math.max(0, (p[1] + 0.95) / 1.9), h2 = h * h;
+  const gust = Math.sin(t * 1.05) + 0.4 * Math.sin(t * 2.3 + 1);
+  const bend = 0.14 * gust * h2, flutter = 0.03 * h2 * Math.sin(t * 4 + (p[0] + p[2]) * 8);
+  return rotY([p[0] + bend + flutter, p[1], p[2] + 0.5 * flutter], t * 0.12);
+}
 const TREATMENTS = [
   { key: 'spin', label: 'Spin', fn: (base, t) => base.map((p) => { const q = rotY(p, t * 0.6); return { x: q[0], y: q[1], z: q[2], b: 1, hi: p[3] }; }) },
+  { key: 'sway', label: 'Sway', fn: (base, t) => base.map((p) => { const q = swayXf(p, t); return { x: q[0], y: q[1], z: q[2], b: 1, hi: p[3] }; }) },
   { key: 'breathe', label: 'Breathe', fn: (base, t) => { const s = 1 + 0.17 * Math.sin(t * 2); return base.map((p) => { const q = rotY([p[0] * s, p[1] * s, p[2] * s], t * 0.3); return { x: q[0], y: q[1], z: q[2], b: 1, hi: p[3] }; }); } },
   { key: 'wave', label: 'Wave', fn: (base, t) => base.map((p) => { const d = 1 + 0.14 * Math.sin(3 * Math.atan2(p[2], p[0]) + t * 3 - p[1] * 2); const q = rotY([p[0] * d, p[1], p[2] * d], t * 0.3); return { x: q[0], y: q[1], z: q[2], b: 1, hi: p[3] }; }) },
   { key: 'twinkle', label: 'Twinkle', fn: (base, t) => base.map((p, i) => { const q = rotY(p, t * 0.35); return { x: q[0], y: q[1], z: q[2], b: 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(t * 4 + hsh(i) * 6.283)), hi: p[3] }; }) },
@@ -1626,6 +1636,7 @@ function drawDots(ctx, size, dots, rMin) {
 function drawGallery(cell, t) {
   const s = cell.shape, dots = [];
   if (s.flat) { const a = t * 0.5, ca = Math.cos(a), sa = Math.sin(a); for (const p of s.pts) dots.push({ x: p[0] * ca - p[1] * sa, y: p[0] * sa + p[1] * ca, z: p[2], hi: p[3] }); }
+  else if (s.sway) { for (const p of s.pts) { const q = swayXf(p, t); dots.push({ x: q[0], y: q[1], z: q[2], hi: p[3] }); } }
   else { for (const p of s.pts) { const q = rotY(p, t * 0.45); dots.push({ x: q[0], y: q[1], z: q[2], hi: p[3] }); } }
   if (s.features) for (const f of s.features(t)) dots.push(f);
   drawDots(cell.ctx, cell.size, dots, 0.3);
