@@ -1035,6 +1035,124 @@ function shSandbagsPts() {
   return fitUnit(pts);
 }
 
+// ---- towers -----------------------------------------------------------------
+// tapering n-sided lattice: prof(f)->[halfWidth,y]; legs + X cross-braces + belts
+function latticeTower(pts, prof, nLevels, nSides, legR, braceR, phase) {
+  const ph = phase == null ? Math.PI / 4 : phase, rings = [];
+  for (let l = 0; l <= nLevels; l++) { const pr = prof(l / nLevels), ring = []; for (let s = 0; s < nSides; s++) { const ang = ph + s / nSides * 2 * Math.PI; ring.push([pr[0] * Math.cos(ang), pr[1], pr[0] * Math.sin(ang)]); } rings.push(ring); }
+  for (let s = 0; s < nSides; s++) for (let l = 0; l < nLevels; l++) strut(pts, rings[l][s], rings[l + 1][s], legR); // legs
+  for (let l = 0; l < nLevels; l++) for (let s = 0; s < nSides; s++) { const s2 = (s + 1) % nSides; strut(pts, rings[l][s], rings[l][s2], braceR); strut(pts, rings[l][s], rings[l + 1][s2], braceR); strut(pts, rings[l][s2], rings[l + 1][s], braceR); }
+  for (let s = 0; s < nSides; s++) { const s2 = (s + 1) % nSides; strut(pts, rings[nLevels][s], rings[nLevels][s2], braceR); }
+  return rings;
+}
+// horizontal cross-arm at height y reaching +/-x, with insulator strings + conductors
+function pylonArm(pts, y, reach, drop) {
+  for (const sx of [-1, 1]) { strut(pts, [0, y, 0], [sx * reach, y, 0], 0.012); strut(pts, [0, y + 0.1, 0], [sx * reach, y, 0], 0.01);
+    for (const rr of [reach * 0.52, reach]) { const x = sx * rr; for (let i = 0; i <= 4; i++) pts.push([x, y - i / 4 * (drop || 0.14), 0]); pts.push([x, y - (drop || 0.14) - 0.02, 0, 1]); } }
+}
+// three guy wires from mast heights ys to ground anchors on radius R
+function guys(pts, ys, R) {
+  for (let k = 0; k < 3; k++) { const ang = k / 3 * 2 * Math.PI + Math.PI / 2, an = [R * Math.cos(ang), -0.92, R * Math.sin(ang)]; pts.push([an[0], an[1], an[2], 1]);
+    for (const y of ys) for (let i = 0; i <= 14; i++) { const f = i / 14; pts.push([an[0] * f, y + (-0.92 - y) * f, an[2] * f]); } }
+}
+// 1. transmission pylon — tapering lattice cat-head with 3 conductor cross-arms
+function twPylonPts() {
+  const pts = [];
+  latticeTower(pts, (f) => [0.42 * (1 - 0.72 * f), -0.92 + f * 1.35], 6, 4, 0.02, 0.012);
+  pylonArm(pts, 0.5, 0.55, 0.16); pylonArm(pts, 0.68, 0.46, 0.15); pylonArm(pts, 0.86, 0.32, 0.13);
+  for (const sx of [-0.1, 0.1]) strut(pts, [sx, 0.86, 0], [sx * 0.4, 1.0, 0], 0.01); pts.push([0, 1.0, 0, 1]); // earth-wire peak
+  return fitUnit(pts);
+}
+// 2. H-frame — two poles + a crossarm carrying three insulator strings
+function twHframePts() {
+  const pts = [];
+  for (const sx of [-0.34, 0.34]) { cyl(pts, sx, 0, 0.05, -0.92, 0.7, 14); strut(pts, [sx, 0.2, 0], [0, 0.5, 0], 0.014); } // poles + knee braces
+  strut(pts, [-0.5, 0.72, 0], [0.5, 0.72, 0], 0.02);                                   // crossarm
+  for (const x of [-0.4, 0, 0.4]) { for (let i = 0; i <= 5; i++) pts.push([x, 0.72 - i / 5 * 0.2, 0]); pts.push([x, 0.72 - 0.22, 0, 1]); } // 3 insulators + conductors
+  return fitUnit(pts);
+}
+// 3. self-supported lattice — slim square telecom tower + small top platform
+function twLatticePts() {
+  const pts = [], rings = latticeTower(pts, (f) => [0.34 * (1 - 0.6 * f), -0.92 + f * 1.75], 8, 4, 0.02, 0.011);
+  for (let s = 0; s < 4; s++) { const c = rings[8][s]; strut(pts, c, [c[0] * 1.5, c[1] + 0.06, c[2] * 1.5], 0.012); } // platform outriggers
+  strut(pts, [0, 0.83, 0], [0, 1.0, 0], 0.014); pts.push([0, 1.0, 0, 1]);              // top mast
+  return fitUnit(pts);
+}
+// 4. monopole — single tapered tube with a triangular antenna headframe
+function twMonopolePts() {
+  const pts = [];
+  for (let iy = 0; iy <= 26; iy++) { const f = iy / 26, y = -0.92 + f * 1.7, r = 0.1 * (1 - 0.4 * f); for (let a = 0; a < 16; a++) { const ang = a / 16 * 2 * Math.PI; pts.push([r * Math.cos(ang), y, r * Math.sin(ang)]); } }
+  for (let k = 0; k < 3; k++) { const ang = k / 3 * 2 * Math.PI + Math.PI / 2, px = 0.28 * Math.cos(ang), pz = 0.28 * Math.sin(ang); strut(pts, [0.06 * Math.cos(ang), 0.72, 0.06 * Math.sin(ang)], [px, 0.72, pz], 0.012); for (let iy = 0; iy <= 6; iy++) for (let iw = -1; iw <= 1; iw++) pts.push([px + iw * 0.03 * -Math.sin(ang), 0.6 + iy / 6 * 0.3, pz + iw * 0.03 * Math.cos(ang), 1]); } // 3 panel antennas
+  return fitUnit(pts);
+}
+// 5. guyed mast — thin tall mast held by three tiers of guy wires
+function twGuyedPts() {
+  const pts = [];
+  cyl(pts, 0, 0, 0.04, -0.92, 0.95, 24);
+  for (let iy = 0; iy <= 8; iy++) { const y = -0.92 + iy / 8 * 1.87; for (let a = 0; a < 3; a++) { const ang = a / 3 * 2 * Math.PI; pts.push([0.05 * Math.cos(ang), y, 0.05 * Math.sin(ang)]); } } // lattice hint
+  guys(pts, [0.1, 0.55, 0.92], 0.6);
+  pts.push([0, 0.95, 0, 1]);
+  return fitUnit(pts);
+}
+// 6. hex lattice — hexagonal (6-leg) tapering lattice tower
+function twHexPts() {
+  const pts = [];
+  latticeTower(pts, (f) => [0.38 * (1 - 0.5 * f), -0.92 + f * 1.7], 7, 6, 0.018, 0.011, 0);
+  strut(pts, [0, 0.78, 0], [0, 0.96, 0], 0.013); pts.push([0, 0.96, 0, 1]);
+  return fitUnit(pts);
+}
+// 7. cell tower — lattice mast bristling with panel antennas + dishes at the top
+function twCellPts() {
+  const pts = []; latticeTower(pts, (f) => [0.28 * (1 - 0.4 * f), -0.92 + f * 1.5], 6, 3, 0.02, 0.012, Math.PI / 2);
+  const yh = 0.6; for (let k = 0; k < 3; k++) { const ang = k / 3 * 2 * Math.PI + Math.PI / 2, px = 0.4 * Math.cos(ang), pz = 0.4 * Math.sin(ang); strut(pts, [0, yh, 0], [px, yh, pz], 0.012);
+    for (let iy = 0; iy <= 6; iy++) for (let iw = -1; iw <= 1; iw++) pts.push([px - iw * 0.035 * Math.sin(ang), yh - 0.12 + iy / 6 * 0.34, pz + iw * 0.035 * Math.cos(ang), 1]); } // panel antennas
+  for (const [dx, dy] of [[0.18, 0.25], [-0.16, 0.05]]) { for (let i = 0; i < 20; i++) { const d = fibDir(i, 20); if (d[0] < 0) continue; pts.push([dx + d[1] * 0.12, dy + d[2] * 0.12, d[0] * 0.05]); } } // microwave dishes
+  return fitUnit(pts);
+}
+// 8. broadcast antenna — lattice base carrying a very tall thin whip antenna
+function twBroadcastPts() {
+  const pts = [];
+  latticeTower(pts, (f) => [0.3 * (1 - 0.55 * f), -0.92 + f * 0.95], 4, 4, 0.02, 0.012);
+  cyl(pts, 0, 0, 0.025, 0.03, 0.8, 20);                                                // whip mast
+  for (const yb of [0.25, 0.5, 0.7]) for (let a = 0; a < 8; a++) { const ang = a / 8 * 2 * Math.PI; pts.push([0.07 * Math.cos(ang), yb, 0.07 * Math.sin(ang), 1]); } // ring beacons
+  cyl(pts, 0, 0, 0.012, 0.8, 1.0, 6); pts.push([0, 1.02, 0, 1]);                        // tip spire
+  return fitUnit(pts);
+}
+// 9. eiffel tower — four curved legs, two platforms, tapering to a spire
+function twEiffelPts() {
+  const pts = [], curve = (f) => 0.5 * Math.pow(1 - f, 1.7) + 0.05;
+  latticeTower(pts, (f) => [curve(f), -0.92 + f * 1.5], 8, 4, 0.02, 0.012);
+  for (const pf of [0.28, 0.55]) { const hw = curve(pf) * 1.15, y = -0.92 + pf * 1.5; for (let s = 0; s < 4; s++) { const s2 = (s + 1) % 4; const a1 = Math.PI / 4 + s / 4 * 2 * Math.PI, a2 = Math.PI / 4 + s2 / 4 * 2 * Math.PI; strut(pts, [hw * Math.cos(a1), y, hw * Math.sin(a1)], [hw * Math.cos(a2), y, hw * Math.sin(a2)], 0.014); } } // platform rings
+  strut(pts, [0, 0.58, 0], [0, 0.98, 0], 0.014); pts.push([0, 1.0, 0, 1]);              // top spire
+  return fitUnit(pts);
+}
+// 10. tokyo skytree — tall round lattice tube, observation bulge, tall gain spire
+function twSkytreePts() {
+  const pts = [];
+  latticeTower(pts, (f) => [0.26 * (1 - 0.45 * f) * (f < 0.02 ? 1.5 : 1), -0.92 + f * 1.3], 8, 8, 0.016, 0.009, 0);
+  for (const yb of [0.15, 0.32]) for (let a = 0; a < 22; a++) { const ang = a / 22 * 2 * Math.PI; pts.push([0.2 * Math.cos(ang), yb, 0.2 * Math.sin(ang), 1]); } // observation bulge rings
+  cyl(pts, 0, 0, 0.03, 0.4, 0.95, 18); pts.push([0, 0.98, 0, 1]);                       // gain tower spire
+  return fitUnit(pts);
+}
+// 11. space needle — tripod core, saucer observation deck near top, spire
+function twNeedlePts() {
+  const pts = [];
+  for (let k = 0; k < 3; k++) { const ang = k / 3 * 2 * Math.PI + Math.PI / 2; strut(pts, [0.4 * Math.cos(ang), -0.92, 0.4 * Math.sin(ang)], [0.06 * Math.cos(ang), 0.35, 0.06 * Math.sin(ang)], 0.02); } // tripod legs sweep in
+  cyl(pts, 0, 0, 0.07, -0.3, 0.55, 12);                                                 // core
+  for (let ir = 0; ir <= 5; ir++) { const rr = 0.34 * (1 - Math.abs(ir - 2.5) / 3); for (let a = 0; a < 26; a++) { const ang = a / 26 * 2 * Math.PI; pts.push([rr * Math.cos(ang), 0.52 + (ir - 2.5) * 0.03, rr * Math.sin(ang), ir === 5 ? 1 : 0]); } } // saucer deck
+  cyl(pts, 0, 0, 0.02, 0.55, 0.92, 8); pts.push([0, 0.95, 0, 1]);                       // spire
+  return fitUnit(pts);
+}
+// 12. water tower — bulbous tank on four splayed lattice legs
+function twWaterPts() {
+  const pts = [];
+  for (let k = 0; k < 4; k++) { const ang = Math.PI / 4 + k / 4 * 2 * Math.PI; strut(pts, [0.4 * Math.cos(ang), -0.92, 0.4 * Math.sin(ang)], [0.18 * Math.cos(ang), 0.2, 0.18 * Math.sin(ang)], 0.02);
+    const a2 = Math.PI / 4 + (k + 1) / 4 * 2 * Math.PI, mid = (ang + a2) / 2; strut(pts, [0.29 * Math.cos(mid), -0.35, 0.29 * Math.sin(mid)], [-0.29 * Math.cos(mid), -0.35, -0.29 * Math.sin(mid)], 0.01); } // legs + cross-brace
+  for (let i = 0; i < 260; i++) { const d = fibDir(i, 260); pts.push([d[0] * 0.42, 0.45 + d[1] * 0.32, d[2] * 0.42]); } // tank
+  pts.push([0, 0.82, 0, 1]);                                                            // finial
+  return fitUnit(pts);
+}
+
 // ---- portals ---------------------------------------------------------------
 // stargate — torus ring in the x-y plane + 9 chevron studs. No fitUnit: the
 // event-horizon feature must share exact coordinates with the ring.
@@ -1220,8 +1338,8 @@ function dragonPts() {
 }
 
 // ---- shapes ----------------------------------------------------------------
-const CATEGORIES = ['primitives', 'mathematical', 'fun', 'weapons', 'sentries', 'arms', 'shields', 'organic', 'origami', 'portals'];
-const CAT_LABEL = { primitives: 'Primitives', mathematical: 'Mathematical', fun: 'Fun', weapons: 'Weapons', sentries: 'Sentries', arms: 'Robotic Arms', shields: 'Shields', organic: 'Organic', origami: 'Origami', portals: 'Portals' };
+const CATEGORIES = ['primitives', 'mathematical', 'fun', 'weapons', 'sentries', 'arms', 'shields', 'towers', 'organic', 'origami', 'portals'];
+const CAT_LABEL = { primitives: 'Primitives', mathematical: 'Mathematical', fun: 'Fun', weapons: 'Weapons', sentries: 'Sentries', arms: 'Robotic Arms', shields: 'Shields', towers: 'Towers', organic: 'Organic', origami: 'Origami', portals: 'Portals' };
 const SHAPES = [
   // primitives
   { key: 'sphere', label: 'Sphere', sub: 'fibonacci lattice', cat: 'primitives', pts: spherePts() },
@@ -1346,7 +1464,20 @@ const SHAPES = [
   { key: 'shield-hex', label: 'Hex Barrier', sub: 'energy wall · flat', cat: 'shields', pts: shHexBarrierPts(), flat: true },
   { key: 'shield-jersey', label: 'Jersey Barrier', sub: 'concrete · road', cat: 'shields', pts: shJerseyPts() },
   { key: 'shield-hedgehog', label: 'Czech Hedgehog', sub: 'anti-tank', cat: 'shields', pts: shHedgehogPts() },
-  { key: 'shield-sandbags', label: 'Sandbag Wall', sub: 'stacked courses', cat: 'shields', pts: shSandbagsPts() }
+  { key: 'shield-sandbags', label: 'Sandbag Wall', sub: 'stacked courses', cat: 'shields', pts: shSandbagsPts() },
+  // towers
+  { key: 'tower-pylon', label: 'Transmission Pylon', sub: 'lattice + arms', cat: 'towers', pts: twPylonPts() },
+  { key: 'tower-hframe', label: 'H-Frame', sub: 'poles + crossarm', cat: 'towers', pts: twHframePts() },
+  { key: 'tower-lattice', label: 'Lattice Tower', sub: 'self-supported', cat: 'towers', pts: twLatticePts() },
+  { key: 'tower-monopole', label: 'Monopole', sub: 'tube + panels', cat: 'towers', pts: twMonopolePts() },
+  { key: 'tower-guyed', label: 'Guyed Mast', sub: 'wires to ground', cat: 'towers', pts: twGuyedPts() },
+  { key: 'tower-hex', label: 'Hex Lattice', sub: '6-sided lattice', cat: 'towers', pts: twHexPts() },
+  { key: 'tower-cell', label: 'Cell Tower', sub: 'panels + dishes', cat: 'towers', pts: twCellPts() },
+  { key: 'tower-broadcast', label: 'Broadcast Antenna', sub: 'lattice + whip', cat: 'towers', pts: twBroadcastPts() },
+  { key: 'tower-eiffel', label: 'Eiffel Tower', sub: 'curved legs · spire', cat: 'towers', pts: twEiffelPts() },
+  { key: 'tower-skytree', label: 'Tokyo Skytree', sub: 'bulge + gain spire', cat: 'towers', pts: twSkytreePts() },
+  { key: 'tower-needle', label: 'Space Needle', sub: 'saucer deck', cat: 'towers', pts: twNeedlePts() },
+  { key: 'tower-water', label: 'Water Tower', sub: 'tank on legs', cat: 'towers', pts: twWaterPts() }
 ];
 const SHAPE_BY_KEY = Object.fromEntries(SHAPES.map((s) => [s.key, s]));
 
