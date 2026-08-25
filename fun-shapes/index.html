@@ -1175,6 +1175,68 @@ function orbRingPts() { const pts = [], R = 0.78, N = 10; for (let k = 0; k < N;
 function orbHelixPts() { const pts = [], R = 0.5, N = 12; for (let k = 0; k < N; k++) { const a = k * 0.62; orb(pts, [R * Math.cos(a), -0.85 + k * 0.155, R * Math.sin(a)], 0.17, 44); } return fitUnit(pts); }
 function orbMoleculePts() { const pts = []; orb(pts, [0, 0, 0], 0.32, 90); const s = 0.6; for (const i of [-1, 1]) for (const j of [-1, 1]) for (const k of [-1, 1]) orb(pts, [i * s, j * s, k * s], 0.16, 40); return fitUnit(pts); }
 
+// ---- trees ------------------------------------------------------------------
+function trunk(pts, x, z, len, r0, r1) { return taperBarrel(pts, [x, -0.92, z], [0, 1, 0.001], len, r0, r1); }
+// filled ellipsoid foliage blob at c with radii (rx,ry,rz); hi speckles highlights
+function foliage(pts, c, rx, ry, rz, n, hi) { for (let i = 0; i < n; i++) { const d = fibDir(i, n), rr = 0.5 + 0.5 * hsh(i * 2.3 + 1); const p = [c[0] + d[0] * rx * rr, c[1] + d[1] * ry * rr, c[2] + d[2] * rz * rr]; if (hi && hsh(i * 5.1 + 3) > 0.86) p.push(1); pts.push(p); } }
+// 1. pine — tiered conical evergreen
+function treePinePts() { const pts = []; trunk(pts, 0, 0, 0.45, 0.09, 0.05);
+  for (const [yb, rb] of [[-0.5, 0.52], [-0.05, 0.44], [0.36, 0.33], [0.68, 0.2]]) { const h = 0.44; for (let iy = 0; iy <= 8; iy++) { const f = iy / 8, y = yb + f * h, r = rb * (1 - f), n = Math.max(4, Math.round(22 * (1 - f * 0.8))); for (let a = 0; a < n; a++) { const ang = a / n * 2 * Math.PI + yb * 3, rr = r * (0.72 + 0.28 * hsh(iy * 7 + a)); pts.push([rr * Math.cos(ang), y, rr * Math.sin(ang)]); } } }
+  pts.push([0, 0.95, 0, 1]); return fitUnit(pts); }
+// 2. parasol / stone pine — tall bare trunk, wide flat umbrella canopy
+function treeParasolPts() { const pts = [], top = trunk(pts, 0, 0, 1.25, 0.11, 0.06);
+  foliage(pts, [0, top[1] + 0.16, 0], 0.92, 0.26, 0.92, 300);
+  for (let k = 0; k < 5; k++) { const ang = k / 5 * 2 * Math.PI; strut(pts, [0, top[1] - 0.05, 0], [0.5 * Math.cos(ang), top[1] + 0.12, 0.5 * Math.sin(ang)], 0.02); }
+  return fitUnit(pts); }
+// 3. oak — stout trunk, big rounded dense canopy
+function treeOakPts() { const pts = [], top = trunk(pts, 0, 0, 0.55, 0.15, 0.1);
+  for (let k = 0; k < 3; k++) { const ang = k / 3 * 2 * Math.PI; strut(pts, [0, top[1] - 0.05, 0], [0.28 * Math.cos(ang), top[1] + 0.35, 0.28 * Math.sin(ang)], 0.04); }
+  foliage(pts, [0, 0.42, 0], 0.82, 0.68, 0.82, 340);
+  for (const c of [[0.4, 0.55, 0.2], [-0.35, 0.6, -0.25], [0.1, 0.8, -0.3]]) foliage(pts, c, 0.4, 0.36, 0.4, 70);
+  return fitUnit(pts); }
+// 4. palm — curved trunk with radiating drooping fronds
+function treePalmPts() { const pts = []; let prev = [0, -0.92, 0]; const seg = 6; let top = prev;
+  for (let i = 1; i <= seg; i++) { const f = i / seg, x = 0.32 * Math.sin(f * 1.3), y = -0.92 + f * 1.4; top = [x, y, 0]; strut(pts, prev, top, 0.06 * (1 - 0.5 * f)); prev = top; }
+  for (let k = 0; k < 9; k++) { const ang = k / 9 * 2 * Math.PI; for (let i = 0; i <= 9; i++) { const f = i / 9, r = 0.85 * f, y = top[1] + 0.22 * Math.sin(f * Math.PI) - 0.55 * f * f; const px = top[0] + r * Math.cos(ang), pz = r * Math.sin(ang); pts.push([px, y, pz]); if (i > 2 && i % 2) for (const s of [-1, 1]) pts.push([px + s * 0.05 * Math.sin(ang), y - 0.02, pz + s * 0.05 * Math.cos(ang)]); } }
+  return fitUnit(pts); }
+// 5. birch — slender trunk, light airy oval canopy
+function treeBirchPts() { const pts = []; trunk(pts, 0.05, 0, 1.0, 0.06, 0.035);
+  for (let yb = -0.5; yb < 0.4; yb += 0.28) { for (let a = 0; a < 3; a++) { const ang = hsh(yb * 13 + a) * 6.28; strut(pts, [0.05, yb, 0], [0.05 + 0.3 * Math.cos(ang), yb + 0.35, 0.3 * Math.sin(ang)], 0.02); } }
+  foliage(pts, [0.05, 0.5, 0], 0.5, 0.55, 0.5, 200, 1);
+  return fitUnit(pts); }
+// 6. willow — dome of foliage with long drooping strands
+function treeWillowPts() { const pts = []; trunk(pts, 0, 0, 0.5, 0.13, 0.09);
+  foliage(pts, [0, 0.35, 0], 0.7, 0.4, 0.7, 140);
+  for (let k = 0; k < 26; k++) { const ang = hsh(k * 3.1) * 6.28, rad = 0.35 + 0.5 * hsh(k * 1.7); for (let i = 0; i <= 10; i++) { const f = i / 10; pts.push([rad * Math.cos(ang) * (0.6 + 0.4 * f), 0.55 - f * 1.3 - 0.15 * f * f, rad * Math.sin(ang) * (0.6 + 0.4 * f)]); } }
+  return fitUnit(pts); }
+// 7. cypress — tall narrow flame column
+function treeCypressPts() { const pts = []; trunk(pts, 0, 0, 0.3, 0.07, 0.05);
+  for (let iy = 0; iy <= 30; iy++) { const f = iy / 30, y = -0.7 + f * 1.6, r = 0.34 * Math.sin(f * Math.PI * 0.9 + 0.15) * (1 - 0.3 * f); const n = Math.max(4, Math.round(18 * r / 0.34)); for (let a = 0; a < n; a++) { const ang = a / n * 2 * Math.PI + iy * 0.6, rr = r * (0.75 + 0.25 * hsh(iy * 5 + a)); pts.push([rr * Math.cos(ang), y, rr * Math.sin(ang)]); } }
+  pts.push([0, 0.92, 0, 1]); return fitUnit(pts); }
+// 8. spruce — narrow continuous cone with drooping branch tips
+function treeSprucePts() { const pts = []; trunk(pts, 0, 0, 0.35, 0.08, 0.05);
+  for (let iy = 0; iy <= 34; iy++) { const f = iy / 34, y = -0.6 + f * 1.5, r = 0.46 * (1 - f); const n = Math.max(4, Math.round(20 * (1 - f))); for (let a = 0; a < n; a++) { const ang = a / n * 2 * Math.PI + iy * 0.5, droop = 0.05 * Math.sin(f * 20), rr = r * (0.8 + 0.2 * hsh(iy * 7 + a)); pts.push([rr * Math.cos(ang), y - droop, rr * Math.sin(ang)]); } }
+  pts.push([0, 0.92, 0, 1]); return fitUnit(pts); }
+// 9. baobab — massive bottle trunk, sparse branch crown
+function treeBaobabPts() { const pts = [], top = trunk(pts, 0, 0, 0.95, 0.3, 0.12);
+  for (let k = 0; k < 7; k++) { const ang = k / 7 * 2 * Math.PI, ex = 0.42 * Math.cos(ang), ez = 0.42 * Math.sin(ang); strut(pts, [0, top[1] - 0.06, 0], [ex, top[1] + 0.2, ez], 0.035); foliage(pts, [ex, top[1] + 0.24, ez], 0.16, 0.1, 0.16, 26); }
+  return fitUnit(pts); }
+// 10. cherry blossom — rounded canopy speckled with blossoms
+function treeCherryPts() { const pts = [], top = trunk(pts, 0, 0, 0.5, 0.12, 0.08);
+  for (let k = 0; k < 4; k++) { const ang = k / 4 * 2 * Math.PI; strut(pts, [0, top[1] - 0.05, 0], [0.35 * Math.cos(ang), top[1] + 0.3, 0.35 * Math.sin(ang)], 0.035); }
+  foliage(pts, [0, 0.45, 0], 0.8, 0.55, 0.8, 300, 1);
+  for (const c of [[0.42, 0.6, 0], [-0.38, 0.5, 0.3], [0, 0.75, -0.35]]) foliage(pts, c, 0.34, 0.3, 0.34, 60, 1);
+  return fitUnit(pts); }
+// 11. bonsai — short twisted trunk with flat foliage pads
+function treeBonsaiPts() { const pts = []; let prev = [0, -0.92, 0], p = prev; const way = [[0.1, -0.5], [-0.15, -0.15], [0.2, 0.15], [0.05, 0.4]];
+  for (const [x, y] of way) { p = [x, y, 0]; strut(pts, prev, p, 0.07); prev = p; }
+  for (const c of [[0.4, 0.4, 0], [-0.25, 0.2, 0.1], [0.15, 0.6, -0.1]]) { strut(pts, [c[0] * 0.4, c[1] - 0.1, c[2]], c, 0.02); foliage(pts, c, 0.3, 0.13, 0.3, 70); }
+  return fitUnit(pts); }
+// 12. bare tree — leafless recursive branching silhouette
+function treeBarePts() { const pts = [];
+  function branch(a, dir, len, r, depth) { const b = [a[0] + dir[0] * len, a[1] + dir[1] * len, a[2] + dir[2] * len]; strut(pts, a, b, r); if (depth <= 0) { pts.push([b[0], b[1], b[2], 1]); return; } for (let k = 0; k < 2 + (depth % 2); k++) { const t = hsh(depth * 7 + k + len * 11), ang = t * 6.28, sp = 0.5 + 0.4 * hsh(k + depth); const nd = normV([dir[0] + sp * Math.cos(ang), dir[1] + 0.5, dir[2] + sp * Math.sin(ang)]); branch(b, nd, len * 0.72, r * 0.65, depth - 1); } }
+  branch([0, -0.92, 0], [0, 1, 0], 0.55, 0.09, 3); return fitUnit(pts); }
+
 // ---- portals ---------------------------------------------------------------
 // stargate — torus ring in the x-y plane + 9 chevron studs. No fitUnit: the
 // event-horizon feature must share exact coordinates with the ring.
@@ -1360,8 +1422,8 @@ function dragonPts() {
 }
 
 // ---- shapes ----------------------------------------------------------------
-const CATEGORIES = ['primitives', 'mathematical', 'fun', 'weapons', 'sentries', 'arms', 'shields', 'towers', 'spheres', 'organic', 'origami', 'portals'];
-const CAT_LABEL = { primitives: 'Primitives', mathematical: 'Mathematical', fun: 'Fun', weapons: 'Weapons', sentries: 'Sentries', arms: 'Robotic Arms', shields: 'Shields', towers: 'Towers', spheres: 'Floating Spheres', organic: 'Organic', origami: 'Origami', portals: 'Portals' };
+const CATEGORIES = ['primitives', 'mathematical', 'fun', 'weapons', 'sentries', 'arms', 'shields', 'towers', 'spheres', 'trees', 'organic', 'origami', 'portals'];
+const CAT_LABEL = { primitives: 'Primitives', mathematical: 'Mathematical', fun: 'Fun', weapons: 'Weapons', sentries: 'Sentries', arms: 'Robotic Arms', shields: 'Shields', towers: 'Towers', spheres: 'Floating Spheres', trees: 'Trees', organic: 'Organic', origami: 'Origami', portals: 'Portals' };
 const SHAPES = [
   // primitives
   { key: 'sphere', label: 'Sphere', sub: 'fibonacci lattice', cat: 'primitives', pts: spherePts() },
@@ -1513,7 +1575,20 @@ const SHAPES = [
   { key: 'orb-octa', label: 'Octahedron', sub: 'six on axes', cat: 'spheres', pts: orbOctaPts() },
   { key: 'orb-ring', label: 'Sphere Ring', sub: 'ten in a circle', cat: 'spheres', pts: orbRingPts() },
   { key: 'orb-helix', label: 'Sphere Helix', sub: 'spiral of orbs', cat: 'spheres', pts: orbHelixPts() },
-  { key: 'orb-molecule', label: 'Molecule', sub: 'core + satellites', cat: 'spheres', pts: orbMoleculePts() }
+  { key: 'orb-molecule', label: 'Molecule', sub: 'core + satellites', cat: 'spheres', pts: orbMoleculePts() },
+  // trees
+  { key: 'tree-pine', label: 'Pine', sub: 'tiered conifer', cat: 'trees', pts: treePinePts() },
+  { key: 'tree-parasol', label: 'Parasol Pine', sub: 'umbrella canopy', cat: 'trees', pts: treeParasolPts() },
+  { key: 'tree-oak', label: 'Oak', sub: 'broad canopy', cat: 'trees', pts: treeOakPts() },
+  { key: 'tree-palm', label: 'Palm', sub: 'curved · fronds', cat: 'trees', pts: treePalmPts() },
+  { key: 'tree-birch', label: 'Birch', sub: 'slender · airy', cat: 'trees', pts: treeBirchPts() },
+  { key: 'tree-willow', label: 'Willow', sub: 'drooping strands', cat: 'trees', pts: treeWillowPts() },
+  { key: 'tree-cypress', label: 'Cypress', sub: 'flame column', cat: 'trees', pts: treeCypressPts() },
+  { key: 'tree-spruce', label: 'Spruce', sub: 'narrow cone', cat: 'trees', pts: treeSprucePts() },
+  { key: 'tree-baobab', label: 'Baobab', sub: 'bottle trunk', cat: 'trees', pts: treeBaobabPts() },
+  { key: 'tree-cherry', label: 'Cherry Blossom', sub: 'speckled canopy', cat: 'trees', pts: treeCherryPts() },
+  { key: 'tree-bonsai', label: 'Bonsai', sub: 'twisted · pads', cat: 'trees', pts: treeBonsaiPts() },
+  { key: 'tree-bare', label: 'Bare Tree', sub: 'branching · leafless', cat: 'trees', pts: treeBarePts() }
 ];
 const SHAPE_BY_KEY = Object.fromEntries(SHAPES.map((s) => [s.key, s]));
 
