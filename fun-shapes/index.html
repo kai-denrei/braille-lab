@@ -648,6 +648,115 @@ function catapultPts() {
   return fitUnit(pts);
 }
 
+// ---- sentries --------------------------------------------------------------
+// plain swept strut a->b (no bright muzzle dot) for legs/rails
+function strut(pts, a, b, r) {
+  const T = normV([b[0] - a[0], b[1] - a[1], b[2] - a[2]]), len = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]), steps = Math.max(4, Math.round(len / 0.09));
+  let n1 = normV(crossV(T, [0, 1, 0.011])); if (!(n1[0] || n1[1] || n1[2])) n1 = [1, 0, 0]; const n2 = crossV(T, n1);
+  for (let i = 0; i <= steps; i++) { const f = i / steps, c = [a[0] + T[0] * len * f, a[1] + T[1] * len * f, a[2] + T[2] * len * f]; for (let m = 0; m < 6; m++) { const ang = m / 6 * 2 * Math.PI, cs = Math.cos(ang), sn = Math.sin(ang); pts.push([c[0] + r * (cs * n1[0] + sn * n2[0]), c[1] + r * (cs * n1[1] + sn * n2[1]), c[2] + r * (cs * n1[2] + sn * n2[2])]); } }
+}
+// flat rectangular foot pad on the ground plane y
+function footPad(pts, c, hx, hz, y) { for (let i = 0; i <= 4; i++) for (let j = 0; j <= 6; j++) pts.push([c[0] + (i / 4 * 2 - 1) * hx, y, c[2] + (j / 6 * 2 - 1) * hz]); }
+// n-leg tripod from apex to feet on a ring of radius R at height yFoot; returns feet
+function tripod(pts, apex, R, yFoot, n, legR, phase) {
+  const feet = [];
+  for (let k = 0; k < n; k++) { const ang = phase + k / n * 2 * Math.PI, f = [R * Math.cos(ang), yFoot, R * Math.sin(ang)]; strut(pts, apex, f, legR); feet.push(f); }
+  return feet;
+}
+// 1. tripod sentry — three splayed feet, rotating boxy head, single barrel, core
+function senTripodPts() {
+  const pts = [], apex = [0, -0.15, 0];
+  const feet = tripod(pts, apex, 0.72, -0.85, 3, 0.05, Math.PI / 2);
+  for (const f of feet) footPad(pts, f, 0.16, 0.1, -0.87);
+  for (let iy = 0; iy <= 4; iy++) { const y = -0.32 + iy / 4 * 0.2; for (let a = 0; a < 18; a++) { const ang = a / 18 * 2 * Math.PI; pts.push([0.24 * Math.cos(ang), y, 0.24 * Math.sin(ang)]); } } // rotary collar
+  turretBox(pts, [0, 0.12, 0], [0.26, 0.22, 0.24], 6);                                 // head
+  turretBarrel(pts, [0.2, 0.14, 0], [1, 0.04, 0], 0.55, 0.05);                         // barrel
+  turretBox(pts, [-0.02, 0.36, 0], [0.1, 0.04, 0.06], 2);                              // top sight
+  for (let a = 0; a < 12; a++) { const ang = a / 12 * 2 * Math.PI; pts.push([0.26 + 0.05 * Math.cos(ang), 0.12 + 0.05 * Math.sin(ang), 0, 1]); } // glowing core
+  return fitUnit(pts);
+}
+// 2. twin minigun — tall tripod, dual rotary gatlings, ammo box + belt loops
+function senMinigunPts() {
+  const pts = [], apex = [0, 0.05, 0];
+  tripod(pts, apex, 0.6, -0.9, 3, 0.05, Math.PI / 2);
+  turretBox(pts, [0, 0.12, 0], [0.2, 0.16, 0.34], 5);                                  // body
+  for (const dz of [-0.2, 0.2]) { for (let k = 0; k < 6; k++) { const ang = k / 6 * 2 * Math.PI; turretBarrel(pts, [0.1, 0.14 + 0.06 * Math.cos(ang), dz + 0.06 * Math.sin(ang)], [0.95, 0.2, 0], 0.62, 0.022); } turretRing(pts, [0.68, 0.27, dz], [0.95, 0.2, 0], 0.09, 16, 1); } // twin gatlings
+  turretBox(pts, [-0.28, 0.14, 0], [0.12, 0.14, 0.18], 4);                             // ammo box
+  for (const dz of [-0.2, 0.2]) for (let i = 0; i <= 16; i++) { const f = i / 16, ang = f * Math.PI; pts.push([-0.28 + 0.34 * f, 0.14 - 0.28 * Math.sin(ang), dz + (dz > 0 ? -1 : 1) * 0.14 * Math.sin(ang), 1]); } // belt loops
+  return fitUnit(pts);
+}
+// 3. naval turret — faceted angular housing, single long barrel, ring base
+function senNavalPts() {
+  const pts = [];
+  discY(pts, 0, 0, 0.46, -0.5); for (let iy = 0; iy <= 4; iy++) { const y = -0.5 + iy / 4 * 0.16; for (let a = 0; a < 22; a++) { const ang = a / 22 * 2 * Math.PI; pts.push([0.42 * Math.cos(ang), y, 0.42 * Math.sin(ang)]); } } // ring base
+  turretBox(pts, [-0.05, 0.02, 0], [0.4, 0.28, 0.34], 6);                              // housing body
+  for (let i = 0; i <= 8; i++) for (let j = 0; j <= 6; j++) { const f = i / 8; pts.push([0.35 - f * 0.34, 0.3 - f * 0.34, (j / 6 * 2 - 1) * 0.3]); } // chamfered front-top slope
+  turretBarrel(pts, [0.3, -0.02, 0], [1, 0.05, 0], 1.05, 0.045);                       // long barrel
+  turretRing(pts, [1.36, 0.03, 0], [1, 0.05, 0], 0.07, 14, 1);                         // muzzle
+  return fitUnit(pts);
+}
+// 4. walker sentry — quadruped legs, hull, long cannon on top
+function senWalkerPts() {
+  const pts = [];
+  turretBox(pts, [0, 0.05, 0], [0.4, 0.14, 0.26], 6);                                  // hull
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const hip = [sx * 0.32, -0.06, sz * 0.24], knee = [sx * 0.5, -0.42, sz * 0.4], foot = [sx * 0.44, -0.85, sz * 0.34]; strut(pts, hip, knee, 0.045); strut(pts, knee, foot, 0.04); footPad(pts, foot, 0.08, 0.06, -0.87); } // 4 legs
+  turretBox(pts, [-0.05, 0.24, 0], [0.16, 0.08, 0.12], 3);                             // turret base on hull
+  turretBarrel(pts, [0.05, 0.28, 0], [1, 0.06, 0], 0.95, 0.045);                       // long cannon
+  turretRing(pts, [1.0, 0.34, 0], [1, 0.06, 0], 0.07, 12, 1);
+  return fitUnit(pts);
+}
+// 5. heavy howitzer — big elevated barrel, muzzle brake, wheels, split-trail spades
+function senHowitzerPts() {
+  const pts = [], dir = normV([0.9, 0.42, 0]);
+  const mz = turretBarrel(pts, [-0.15, 0.0, 0], dir, 1.6, 0.06);                        // long barrel
+  turretRing(pts, mz, dir, 0.11, 16, 1); turretRing(pts, [mz[0] - dir[0] * 0.12, mz[1] - dir[1] * 0.12, 0], dir, 0.1, 14); // muzzle brake
+  turretBox(pts, [-0.22, -0.04, 0], [0.2, 0.18, 0.22], 5);                             // breech/cradle
+  for (const dz of [-0.42, 0.42]) wheel(pts, [-0.24, -0.42, dz], 0.34);                // wheels
+  for (const dz of [-0.3, 0.3]) { const spade = [-0.3 - 0.78, -0.02 - 0.62, dz]; strut(pts, [-0.34, -0.04, dz * 0.5], spade, 0.05); footPad(pts, [spade[0], spade[1], spade[2]], 0.1, 0.09, spade[1] - 0.02); } // split trails + spades
+  return fitUnit(pts);
+}
+// 6. flak quad — WWII 2x2 AA barrel cluster on a rotating pedestal + shields
+function senFlakPts() {
+  const pts = []; turretPed(pts, 0.4, -0.5, -0.92);
+  turretBox(pts, [-0.05, -0.08, 0], [0.22, 0.18, 0.26], 5);                            // rotating mount
+  const dir = normV([0.8, 0.62, 0]);
+  for (const dy of [-0.08, 0.1]) for (const dz of [-0.1, 0.1]) turretBarrel(pts, [0.12, 0.02 + dy, dz], dir, 0.85, 0.03); // 2x2 barrels
+  for (const dz of [-0.28, 0.28]) for (let i = 0; i <= 6; i++) for (let j = 0; j <= 5; j++) pts.push([-0.05 + (i / 6 * 2 - 1) * 0.06, 0.02 + (j / 5) * 0.22, dz]); // side shields
+  return fitUnit(pts);
+}
+// 7. rail sentry — massive twin-rail cannon on a heavy tripod, angled up
+function senRailPts() {
+  const pts = [], apex = [-0.1, -0.1, 0];
+  tripod(pts, apex, 0.66, -0.9, 3, 0.06, Math.PI / 2);
+  turretBox(pts, [-0.1, 0.0, 0], [0.18, 0.14, 0.2], 4);                                // yoke/cradle
+  const dir = normV([0.92, 0.34, 0]), base = [-0.1, 0.05, 0];
+  for (const dz of [-0.09, 0.09]) strut(pts, [base[0], base[1], dz], [base[0] + dir[0] * 1.5, base[1] + dir[1] * 1.5, dz], 0.035); // twin rails
+  turretBarrel(pts, base, dir, 1.4, 0.03);                                             // bore between rails
+  for (let i = 0; i <= 6; i++) { const f = i / 6; strut(pts, [base[0] + dir[0] * 1.5 * f, base[1] + dir[1] * 1.5 * f, -0.09], [base[0] + dir[0] * 1.5 * f, base[1] + dir[1] * 1.5 * f, 0.09], 0.02); } // rail cross-ties
+  pts.push([base[0] + dir[0] * 1.5, base[1] + dir[1] * 1.5, 0, 1]);
+  return fitUnit(pts);
+}
+// 8. defense dome — squat tripod, rotating radome dome, twin stub barrels
+function senDomePts() {
+  const pts = [], apex = [0, -0.2, 0];
+  const feet = tripod(pts, apex, 0.62, -0.82, 3, 0.05, Math.PI / 2);
+  for (const f of feet) footPad(pts, f, 0.12, 0.09, -0.84);
+  const R = 0.5; for (let i = 0; i < 260; i++) { const d = fibDir(i, 260); if (d[1] < -0.1) continue; pts.push([d[0] * R, 0.02 + d[1] * R * 0.9, d[2] * R]); } // dome
+  discY(pts, 0, 0, R * 0.98, -0.06);                                                   // dome base disc
+  for (const dz of [-0.12, 0.12]) turretBarrel(pts, [0.36, 0.05, dz], [0.94, 0.28, 0], 0.42, 0.035); // twin stubs
+  return fitUnit(pts);
+}
+// 9. siege mortar — huge steep short-barrel mortar on a tracked base
+function senSiegePts() {
+  const pts = [];
+  for (const dz of [-0.42, 0.42]) { turretBox(pts, [0, -0.62, dz], [0.62, 0.14, 0.14], 6); for (let a = 0; a < 8; a++) { const ang = a / 8 * 2 * Math.PI; for (const ex of [-0.62, 0.62]) pts.push([ex + 0.14 * Math.cos(ang), -0.62 + 0.14 * Math.sin(ang), dz]); } } // twin tracks + idler wheels
+  turretBox(pts, [0, -0.3, 0], [0.44, 0.2, 0.4], 6);                                   // hull
+  turretBox(pts, [-0.05, -0.02, 0], [0.3, 0.2, 0.3], 5);                               // breech block
+  const sd = normV([0.5, 1, 0]), smz = taperBarrel(pts, [0.0, 0.05, 0], sd, 0.8, 0.19, 0.17); // huge short steep barrel
+  turretRing(pts, smz, sd, 0.2, 18, 1);                                                // muzzle mouth
+  return fitUnit(pts);
+}
+
 // ---- portals ---------------------------------------------------------------
 // stargate — torus ring in the x-y plane + 9 chevron studs. No fitUnit: the
 // event-horizon feature must share exact coordinates with the ring.
@@ -833,8 +942,8 @@ function dragonPts() {
 }
 
 // ---- shapes ----------------------------------------------------------------
-const CATEGORIES = ['primitives', 'mathematical', 'fun', 'weapons', 'organic', 'origami', 'portals'];
-const CAT_LABEL = { primitives: 'Primitives', mathematical: 'Mathematical', fun: 'Fun', weapons: 'Weapons', organic: 'Organic', origami: 'Origami', portals: 'Portals' };
+const CATEGORIES = ['primitives', 'mathematical', 'fun', 'weapons', 'sentries', 'organic', 'origami', 'portals'];
+const CAT_LABEL = { primitives: 'Primitives', mathematical: 'Mathematical', fun: 'Fun', weapons: 'Weapons', sentries: 'Sentries', organic: 'Organic', origami: 'Origami', portals: 'Portals' };
 const SHAPES = [
   // primitives
   { key: 'sphere', label: 'Sphere', sub: 'fibonacci lattice', cat: 'primitives', pts: spherePts() },
@@ -924,7 +1033,17 @@ const SHAPES = [
   { key: 'cannon', label: 'Cannon', sub: 'old-school · wheeled', cat: 'weapons', pts: cannonPts() },
   { key: 'missile', label: 'Missile', sub: 'nose + fins', cat: 'weapons', pts: missilePts() },
   { key: 'grenade', label: 'Grenade', sub: 'frag + lever + pin', cat: 'weapons', pts: grenadePts() },
-  { key: 'catapult', label: 'Catapult', sub: 'arm + bucket', cat: 'weapons', pts: catapultPts() }
+  { key: 'catapult', label: 'Catapult', sub: 'arm + bucket', cat: 'weapons', pts: catapultPts() },
+  // sentries
+  { key: 'sentry-tri', label: 'Tripod Sentry', sub: 'splayed feet + head', cat: 'sentries', pts: senTripodPts() },
+  { key: 'sentry-mini', label: 'Twin Minigun', sub: 'dual gatlings + belts', cat: 'sentries', pts: senMinigunPts() },
+  { key: 'sentry-naval', label: 'Naval Turret', sub: 'faceted housing', cat: 'sentries', pts: senNavalPts() },
+  { key: 'sentry-walker', label: 'Walker Sentry', sub: 'quadruped + cannon', cat: 'sentries', pts: senWalkerPts() },
+  { key: 'sentry-howitzer', label: 'Heavy Howitzer', sub: 'wheels + split trail', cat: 'sentries', pts: senHowitzerPts() },
+  { key: 'sentry-flak', label: 'Flak Quad', sub: '2×2 AA barrels', cat: 'sentries', pts: senFlakPts() },
+  { key: 'sentry-rail', label: 'Rail Sentry', sub: 'twin-rail cannon', cat: 'sentries', pts: senRailPts() },
+  { key: 'sentry-dome', label: 'Defense Dome', sub: 'radome + twin stubs', cat: 'sentries', pts: senDomePts() },
+  { key: 'sentry-siege', label: 'Siege Mortar', sub: 'tracked · steep bore', cat: 'sentries', pts: senSiegePts() }
 ];
 const SHAPE_BY_KEY = Object.fromEntries(SHAPES.map((s) => [s.key, s]));
 
