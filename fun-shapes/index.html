@@ -822,6 +822,92 @@ function senHexMissilePts() {
   return fitUnit(pts);
 }
 
+// ---- robotic arms ----------------------------------------------------------
+function jointBall(pts, c, r) { for (let i = 0; i < 40; i++) { const d = fibDir(i, 40); pts.push([c[0] + d[0] * r, c[1] + d[1] * r, c[2] + d[2] * r]); } }
+// short cylinder about the y axis (pedestal / column / spindle segment)
+function cyl(pts, cx, cz, r, y0, y1, rings) { const N = rings || 8; for (let iy = 0; iy <= N; iy++) { const y = y0 + (y1 - y0) * iy / N; for (let a = 0; a < 18; a++) { const ang = a / 18 * 2 * Math.PI; pts.push([cx + r * Math.cos(ang), y, cz + r * Math.sin(ang)]); } } }
+// 1. articulated 6-axis arm — base, shoulder, upper arm, elbow, forearm, tool
+function armSixAxisPts() {
+  const pts = [];
+  discY(pts, -0.35, 0, 0.24, -0.92); cyl(pts, -0.35, 0, 0.2, -0.92, -0.66);            // base pedestal
+  turretBox(pts, [-0.35, -0.55, 0], [0.16, 0.12, 0.16], 4);                            // J1 rotating base
+  const sh = [-0.35, -0.38, 0], el = [-0.08, 0.18, 0], wr = [0.48, 0.34, 0];
+  jointBall(pts, sh, 0.13); strut(pts, sh, el, 0.075);                                 // shoulder + upper arm
+  jointBall(pts, el, 0.11); strut(pts, el, wr, 0.06);                                  // elbow + forearm
+  jointBall(pts, wr, 0.08);                                                            // wrist
+  const tool = [0.62, 0.28, 0]; strut(pts, wr, tool, 0.045); turretRing(pts, tool, [1, -0.3, 0], 0.06, 12, 1); // flange/tool
+  return fitUnit(pts);
+}
+// 2. SCARA — vertical column, two horizontal links, vertical spindle at the end
+function armScaraPts() {
+  const pts = [];
+  discY(pts, -0.55, 0, 0.26, -0.92); cyl(pts, -0.55, 0, 0.16, -0.92, 0.4, 12);         // base + column
+  turretBox(pts, [-0.4, 0.4, 0], [0.16, 0.09, 0.13], 3);                               // J1 housing
+  const j1 = [-0.4, 0.4, 0], el = [0.15, 0.4, 0], j2 = [0.62, 0.4, 0];
+  strut(pts, j1, el, 0.07); jointBall(pts, el, 0.1); strut(pts, el, j2, 0.06);         // link1 + elbow + link2
+  cyl(pts, 0.62, 0, 0.05, -0.24, 0.52, 10);                                            // vertical spindle (ball-screw)
+  turretBox(pts, [0.62, -0.28, 0], [0.05, 0.05, 0.05], 2);                             // end tool
+  return fitUnit(pts);
+}
+// 3. delta robot — top triangular frame, 3 arms splaying down to a moving platform
+function armDeltaPts() {
+  const pts = [], yTop = 0.58, plat = [0, -0.34, 0];
+  for (let a = 0; a < 40; a++) { const ang = a / 40 * 2 * Math.PI; pts.push([0.56 * Math.cos(ang), yTop, 0.56 * Math.sin(ang)]); } // frame ring
+  discY(pts, 0, 0, 0.5, yTop + 0.04);
+  for (let k = 0; k < 3; k++) { const ang = Math.PI / 2 + k / 3 * 2 * Math.PI, mot = [0.44 * Math.cos(ang), yTop, 0.44 * Math.sin(ang)], pe = [0.14 * Math.cos(ang), plat[1], 0.14 * Math.sin(ang)];
+    turretBox(pts, mot, [0.09, 0.07, 0.09], 2);                                        // motor
+    const tang = [-Math.sin(ang), 0, Math.cos(ang)];
+    for (const s of [-0.05, 0.05]) strut(pts, [mot[0] + tang[0] * s, mot[1], mot[2] + tang[2] * s], [pe[0] + tang[0] * s * 0.5, pe[1], pe[2] + tang[2] * s * 0.5], 0.02); // parallelogram rods
+  }
+  discY(pts, 0, 0, 0.15, plat[1]); jointBall(pts, [0, plat[1] - 0.08, 0], 0.06);       // moving platform + tool
+  return fitUnit(pts);
+}
+// 4. gantry — two posts, top bridge beam, carriage, vertical Z-axis with tool
+function armGantryPts() {
+  const pts = [];
+  for (const sx of [-0.62, 0.62]) { turretBox(pts, [sx, -0.2, 0], [0.08, 0.72, 0.08], 6); discY(pts, sx, 0, 0.16, -0.92); } // posts + feet
+  turretBox(pts, [0, 0.56, 0], [0.66, 0.08, 0.08], 6);                                 // bridge beam
+  turretBox(pts, [0.16, 0.56, 0], [0.12, 0.12, 0.14], 3);                              // carriage
+  cyl(pts, 0.16, 0, 0.05, -0.15, 0.5, 10);                                             // Z axis
+  turretBox(pts, [0.16, -0.2, 0], [0.07, 0.06, 0.09], 2);                              // tool head
+  return fitUnit(pts);
+}
+// 5. palletizer — parallelogram linkage keeping a horizontal load platform level
+function armPalletizerPts() {
+  const pts = [];
+  discY(pts, -0.4, 0, 0.26, -0.92); turretBox(pts, [-0.4, -0.5, 0], [0.2, 0.16, 0.2], 4); // base + J1
+  const sh = [-0.4, -0.28, 0], el = [0.2, 0.35, 0], wr = [0.55, 0.05, 0];
+  jointBall(pts, sh, 0.12);
+  strut(pts, sh, el, 0.06);                                                            // main arm
+  strut(pts, [sh[0] + 0.12, sh[1] - 0.02, 0], [el[0] + 0.12, el[1] - 0.02, 0], 0.035); // parallel drive link
+  jointBall(pts, el, 0.09); strut(pts, el, wr, 0.06);                                  // elbow + forearm
+  strut(pts, [el[0] - 0.1, el[1] - 0.06, 0], [wr[0] - 0.1, wr[1] - 0.06, 0], 0.03);    // parallel link 2
+  turretBox(pts, [0.6, -0.02, 0], [0.03, 0.02, 0.22], 3); turretBox(pts, [0.62, -0.12, 0], [0.16, 0.02, 0.2], 3); // horizontal wrist + fork platform
+  return fitUnit(pts);
+}
+// 6. welding arm — 6-axis reaching DOWN to a seam, angled torch + draping cable
+function armWelderPts() {
+  const pts = [];
+  discY(pts, -0.4, 0, 0.22, -0.92); turretBox(pts, [-0.4, -0.56, 0], [0.15, 0.11, 0.15], 4);
+  const sh = [-0.4, -0.4, 0], el = [-0.08, 0.24, 0], wr = [0.4, 0.02, 0];
+  jointBall(pts, sh, 0.12); strut(pts, sh, el, 0.07); jointBall(pts, el, 0.1); strut(pts, el, wr, 0.055); jointBall(pts, wr, 0.07);
+  const tip = [0.56, -0.24, 0]; strut(pts, wr, [0.5, -0.08, 0], 0.04); strut(pts, [0.5, -0.08, 0], tip, 0.03); // torch neck angled down
+  turretRing(pts, tip, normV([0.4, -1, 0]), 0.04, 10, 1); pts.push([tip[0], tip[1] - 0.04, 0, 1]);            // nozzle + arc tip
+  const A = [-0.14, 0.06, 0.13], B = [0.34, 0.0, 0.13];
+  for (let i = 0; i <= 18; i++) { const f = i / 18; pts.push([A[0] + (B[0] - A[0]) * f, A[1] + (B[1] - A[1]) * f - 0.32 * Math.sin(Math.PI * f), 0.13]); } // draping cable
+  return fitUnit(pts);
+}
+// 7. gripper arm — 6-axis forward reach ending in a two-finger claw curling inward
+function armGripperPts() {
+  const pts = [];
+  discY(pts, -0.35, 0, 0.22, -0.92); turretBox(pts, [-0.35, -0.56, 0], [0.15, 0.11, 0.15], 4);
+  const sh = [-0.35, -0.4, 0], el = [-0.05, 0.22, 0], wr = [0.46, 0.08, 0];
+  jointBall(pts, sh, 0.12); strut(pts, sh, el, 0.07); jointBall(pts, el, 0.1); strut(pts, el, wr, 0.055); jointBall(pts, wr, 0.07);
+  const palm = [0.58, 0.02, 0]; strut(pts, wr, palm, 0.045); turretBox(pts, [palm[0], palm[1], 0], [0.04, 0.05, 0.11], 2); // wrist + palm
+  for (const dz of [-0.1, 0.1]) { const k = [palm[0] + 0.16, palm[1] + 0.05, dz]; strut(pts, [palm[0] + 0.04, palm[1] + 0.02, dz], k, 0.024); strut(pts, k, [palm[0] + 0.24, palm[1] - 0.06, dz * 0.45], 0.02); } // two fingers curling inward
+  return fitUnit(pts);
+}
+
 // ---- portals ---------------------------------------------------------------
 // stargate — torus ring in the x-y plane + 9 chevron studs. No fitUnit: the
 // event-horizon feature must share exact coordinates with the ring.
@@ -1007,8 +1093,8 @@ function dragonPts() {
 }
 
 // ---- shapes ----------------------------------------------------------------
-const CATEGORIES = ['primitives', 'mathematical', 'fun', 'weapons', 'sentries', 'organic', 'origami', 'portals'];
-const CAT_LABEL = { primitives: 'Primitives', mathematical: 'Mathematical', fun: 'Fun', weapons: 'Weapons', sentries: 'Sentries', organic: 'Organic', origami: 'Origami', portals: 'Portals' };
+const CATEGORIES = ['primitives', 'mathematical', 'fun', 'weapons', 'sentries', 'arms', 'organic', 'origami', 'portals'];
+const CAT_LABEL = { primitives: 'Primitives', mathematical: 'Mathematical', fun: 'Fun', weapons: 'Weapons', sentries: 'Sentries', arms: 'Robotic Arms', organic: 'Organic', origami: 'Origami', portals: 'Portals' };
 const SHAPES = [
   // primitives
   { key: 'sphere', label: 'Sphere', sub: 'fibonacci lattice', cat: 'primitives', pts: spherePts() },
@@ -1112,7 +1198,15 @@ const SHAPES = [
   { key: 'sentry-hex', label: 'Hex Walker', sub: '6 legs · launcher', cat: 'sentries', pts: senHexPts() },
   { key: 'sentry-hex-twin', label: 'Twin-Launcher Hex', sub: '6 legs · dual muzzles', cat: 'sentries', pts: senHexTwinPts() },
   { key: 'sentry-hex-siege', label: 'Siege Hex Walker', sub: '6 legs · oversized bore', cat: 'sentries', pts: senHexSiegePts() },
-  { key: 'sentry-hex-missile', label: 'Missile Hex Walker', sub: '6 legs · launcher + pods', cat: 'sentries', pts: senHexMissilePts() }
+  { key: 'sentry-hex-missile', label: 'Missile Hex Walker', sub: '6 legs · launcher + pods', cat: 'sentries', pts: senHexMissilePts() },
+  // robotic arms
+  { key: 'arm-6axis', label: '6-Axis Arm', sub: 'articulated · reach', cat: 'arms', pts: armSixAxisPts() },
+  { key: 'arm-scara', label: 'SCARA', sub: 'column + spindle', cat: 'arms', pts: armScaraPts() },
+  { key: 'arm-delta', label: 'Delta Robot', sub: 'parallel · 3 arms', cat: 'arms', pts: armDeltaPts() },
+  { key: 'arm-gantry', label: 'Gantry', sub: 'bridge + Z-axis', cat: 'arms', pts: armGantryPts() },
+  { key: 'arm-palletizer', label: 'Palletizer', sub: 'parallelogram linkage', cat: 'arms', pts: armPalletizerPts() },
+  { key: 'arm-welder', label: 'Welding Arm', sub: 'torch + cable', cat: 'arms', pts: armWelderPts() },
+  { key: 'arm-gripper', label: 'Gripper Arm', sub: 'two-finger claw', cat: 'arms', pts: armGripperPts() }
 ];
 const SHAPE_BY_KEY = Object.fromEntries(SHAPES.map((s) => [s.key, s]));
 
