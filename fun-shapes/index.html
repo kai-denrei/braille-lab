@@ -758,14 +758,17 @@ function senSiegePts() {
 }
 
 // --- hex-walker helpers (heavier, 6-legged walker line) ---
-// 6 wide articulated legs (3 pairs): femur hip->raised knee, tibia knee->planted
-// foot; r sets thickness. Forward is +x; legs splay along +/-z for a wide stance.
+// spider-type legs (3 pairs): femur rises OUT+UP to a large raised knee joint,
+// tibia bends sharply DOWN+IN to a pointed foot (strong M-bend); forward is +x.
+// Knees sit well above the hull so the body slings below the leg articulations.
 function hexLegs(pts, r) {
-  for (const x of [-0.44, 0, 0.44]) for (const sz of [-1, 1]) {
-    const hip = [x, -0.06, sz * 0.26], knee = [x + (x === 0 ? 0 : Math.sign(x) * 0.05), 0.16, sz * 0.58], foot = [x, -0.9, sz * 0.52];
-    strut(pts, hip, knee, r); strut(pts, knee, foot, r * 0.85);
-    footPad(pts, foot, 0.1, 0.08, -0.92);
-    for (let a = 0; a < 8; a++) { const ang = a / 8 * 2 * Math.PI; pts.push([knee[0] + 0.06 * Math.cos(ang), knee[1] + 0.06 * Math.sin(ang), sz * 0.58]); } // knee joint
+  for (const x of [-0.46, 0, 0.46]) for (const sz of [-1, 1]) {
+    const hip = [x, 0.0, sz * 0.24], knee = [x, 0.46, sz * 0.66], foot = [x, -0.92, sz * 0.48];
+    strut(pts, hip, knee, r * 1.15);                                                   // femur (thick, up+out)
+    const T = normV([foot[0] - knee[0], foot[1] - knee[1], foot[2] - knee[2]]), len = Math.hypot(foot[0] - knee[0], foot[1] - knee[1], foot[2] - knee[2]);
+    taperBarrel(pts, knee, T, len, r, 0.006);                                          // tibia (tapers to point)
+    for (let i = 0; i < 30; i++) { const d = fibDir(i, 30); pts.push([knee[0] + d[0] * 0.1, knee[1] + d[1] * 0.1, knee[2] + d[2] * 0.1]); } // large knee articulation
+    pts.push([foot[0], foot[1], foot[2], 1]);                                          // pointed foot tip
   }
 }
 // launcher turret pointing +dir: a thick tube whose flared REAR (borrowed from
