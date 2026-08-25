@@ -1153,6 +1153,28 @@ function twWaterPts() {
   return fitUnit(pts);
 }
 
+// ---- floating spheres -------------------------------------------------------
+// a fibonacci orb at c, radius r, with a highlighted pole
+function orb(pts, c, r, n) { const N = n || 64; for (let i = 0; i < N; i++) { const d = fibDir(i, N); pts.push([c[0] + d[0] * r, c[1] + d[1] * r, c[2] + d[2] * r]); } pts.push([c[0], c[1] + r, c[2], 1]); }
+// dice: pip-count clusters of floating orbs (no cube), classic die-face layout
+function pips(cells, r, n) { const pts = [], g = 0.52; for (const [gx, gy] of cells) orb(pts, [gx * g, gy * g, 0], r || 0.19, n || 90); return fitUnit(pts); }
+function orb1Pts() { return pips([[0, 0]], 0.34, 240); }
+function orb2Pts() { return pips([[-1, 1], [1, -1]]); }
+function orb3Pts() { return pips([[-1, 1], [0, 0], [1, -1]]); }
+function orb4Pts() { return pips([[-1, 1], [1, 1], [-1, -1], [1, -1]]); }
+function orb5Pts() { return pips([[-1, 1], [1, 1], [0, 0], [-1, -1], [1, -1]]); }
+function orb6Pts() { return pips([[-1, 1], [-1, 0], [-1, -1], [1, 1], [1, 0], [1, -1]]); }
+// arrangements — triangular / square courses stacked, plus solids of orbs
+function triLayer(out, m, y, d) { for (let row = 0; row < m; row++) { const cnt = m - row; for (let i = 0; i < cnt; i++) out.push([(i - (cnt - 1) / 2) * d, y, (row - (m - 1) / 2) * d * 0.866]); } }
+function sqLayer(out, m, y, d) { for (let i = 0; i < m; i++) for (let j = 0; j < m; j++) out.push([(i - (m - 1) / 2) * d, y, (j - (m - 1) / 2) * d]); }
+function orbTetraPts() { const pts = [], c = [], d = 0.5, dy = d * 0.82; triLayer(c, 3, -dy, d); triLayer(c, 2, 0, d); triLayer(c, 1, dy, d); for (const p of c) orb(pts, p, 0.2, 54); return fitUnit(pts); }
+function orbSqPyramidPts() { const pts = [], c = [], d = 0.5, dy = d * 0.72; sqLayer(c, 3, -dy, d); sqLayer(c, 2, 0, d); sqLayer(c, 1, dy, d); for (const p of c) orb(pts, p, 0.18, 48); return fitUnit(pts); }
+function orbCubePts() { const pts = [], d = 0.52; for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (let k = -1; k <= 1; k++) orb(pts, [i * d, j * d, k * d], 0.17, 40); return fitUnit(pts); }
+function orbOctaPts() { const pts = [], R = 0.7; for (const a of [[R, 0, 0], [-R, 0, 0], [0, R, 0], [0, -R, 0], [0, 0, R], [0, 0, -R]]) orb(pts, a, 0.24, 64); return fitUnit(pts); }
+function orbRingPts() { const pts = [], R = 0.78, N = 10; for (let k = 0; k < N; k++) { const a = k / N * 2 * Math.PI; orb(pts, [R * Math.cos(a), 0, R * Math.sin(a)], 0.2, 54); } return fitUnit(pts); }
+function orbHelixPts() { const pts = [], R = 0.5, N = 12; for (let k = 0; k < N; k++) { const a = k * 0.62; orb(pts, [R * Math.cos(a), -0.85 + k * 0.155, R * Math.sin(a)], 0.17, 44); } return fitUnit(pts); }
+function orbMoleculePts() { const pts = []; orb(pts, [0, 0, 0], 0.32, 90); const s = 0.6; for (const i of [-1, 1]) for (const j of [-1, 1]) for (const k of [-1, 1]) orb(pts, [i * s, j * s, k * s], 0.16, 40); return fitUnit(pts); }
+
 // ---- portals ---------------------------------------------------------------
 // stargate — torus ring in the x-y plane + 9 chevron studs. No fitUnit: the
 // event-horizon feature must share exact coordinates with the ring.
@@ -1338,8 +1360,8 @@ function dragonPts() {
 }
 
 // ---- shapes ----------------------------------------------------------------
-const CATEGORIES = ['primitives', 'mathematical', 'fun', 'weapons', 'sentries', 'arms', 'shields', 'towers', 'organic', 'origami', 'portals'];
-const CAT_LABEL = { primitives: 'Primitives', mathematical: 'Mathematical', fun: 'Fun', weapons: 'Weapons', sentries: 'Sentries', arms: 'Robotic Arms', shields: 'Shields', towers: 'Towers', organic: 'Organic', origami: 'Origami', portals: 'Portals' };
+const CATEGORIES = ['primitives', 'mathematical', 'fun', 'weapons', 'sentries', 'arms', 'shields', 'towers', 'spheres', 'organic', 'origami', 'portals'];
+const CAT_LABEL = { primitives: 'Primitives', mathematical: 'Mathematical', fun: 'Fun', weapons: 'Weapons', sentries: 'Sentries', arms: 'Robotic Arms', shields: 'Shields', towers: 'Towers', spheres: 'Floating Spheres', organic: 'Organic', origami: 'Origami', portals: 'Portals' };
 const SHAPES = [
   // primitives
   { key: 'sphere', label: 'Sphere', sub: 'fibonacci lattice', cat: 'primitives', pts: spherePts() },
@@ -1477,7 +1499,21 @@ const SHAPES = [
   { key: 'tower-eiffel', label: 'Eiffel Tower', sub: 'curved legs · spire', cat: 'towers', pts: twEiffelPts() },
   { key: 'tower-skytree', label: 'Tokyo Skytree', sub: 'bulge + gain spire', cat: 'towers', pts: twSkytreePts() },
   { key: 'tower-needle', label: 'Space Needle', sub: 'saucer deck', cat: 'towers', pts: twNeedlePts() },
-  { key: 'tower-water', label: 'Water Tower', sub: 'tank on legs', cat: 'towers', pts: twWaterPts() }
+  { key: 'tower-water', label: 'Water Tower', sub: 'tank on legs', cat: 'towers', pts: twWaterPts() },
+  // floating spheres — dice (pip counts) + arrangements
+  { key: 'orb-1', label: 'One', sub: 'die · 1 sphere', cat: 'spheres', pts: orb1Pts(), flat: true },
+  { key: 'orb-2', label: 'Two', sub: 'die · 2 spheres', cat: 'spheres', pts: orb2Pts(), flat: true },
+  { key: 'orb-3', label: 'Three', sub: 'die · 3 spheres', cat: 'spheres', pts: orb3Pts(), flat: true },
+  { key: 'orb-4', label: 'Four', sub: 'die · 4 spheres', cat: 'spheres', pts: orb4Pts(), flat: true },
+  { key: 'orb-5', label: 'Five', sub: 'die · 5 spheres', cat: 'spheres', pts: orb5Pts(), flat: true },
+  { key: 'orb-6', label: 'Six', sub: 'die · 6 spheres', cat: 'spheres', pts: orb6Pts(), flat: true },
+  { key: 'orb-tetra', label: 'Tetra Pyramid', sub: 'cannonball stack', cat: 'spheres', pts: orbTetraPts() },
+  { key: 'orb-sqpyr', label: 'Square Pyramid', sub: 'stacked courses', cat: 'spheres', pts: orbSqPyramidPts() },
+  { key: 'orb-cube', label: 'Sphere Cube', sub: '3×3×3 lattice', cat: 'spheres', pts: orbCubePts() },
+  { key: 'orb-octa', label: 'Octahedron', sub: 'six on axes', cat: 'spheres', pts: orbOctaPts() },
+  { key: 'orb-ring', label: 'Sphere Ring', sub: 'ten in a circle', cat: 'spheres', pts: orbRingPts() },
+  { key: 'orb-helix', label: 'Sphere Helix', sub: 'spiral of orbs', cat: 'spheres', pts: orbHelixPts() },
+  { key: 'orb-molecule', label: 'Molecule', sub: 'core + satellites', cat: 'spheres', pts: orbMoleculePts() }
 ];
 const SHAPE_BY_KEY = Object.fromEntries(SHAPES.map((s) => [s.key, s]));
 
