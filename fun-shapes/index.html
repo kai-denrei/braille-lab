@@ -542,6 +542,112 @@ function bulletPts() {
   return fitUnit(pts);
 }
 
+// ---- weapons ---------------------------------------------------------------
+// tapered swept cone-barrel (r0 at base -> r1 at muzzle); returns muzzle point
+function taperBarrel(pts, base, dir, len, r0, r1) {
+  const T = normV(dir), steps = Math.max(6, Math.round(len / 0.07)); let n1 = normV(crossV(T, [0, 1, 0.011])); if (!(n1[0] || n1[1] || n1[2])) n1 = [1, 0, 0]; const n2 = crossV(T, n1);
+  for (let i = 0; i <= steps; i++) { const f = i / steps, r = r0 + (r1 - r0) * f, c = [base[0] + T[0] * len * f, base[1] + T[1] * len * f, base[2] + T[2] * len * f]; for (let m = 0; m < 8; m++) { const a = m / 8 * 2 * Math.PI, cs = Math.cos(a), sn = Math.sin(a); pts.push([c[0] + r * (cs * n1[0] + sn * n2[0]), c[1] + r * (cs * n1[1] + sn * n2[1]), c[2] + r * (cs * n1[2] + sn * n2[2])]); } }
+  return [base[0] + T[0] * len, base[1] + T[1] * len, base[2] + T[2] * len];
+}
+// spoked wheel in the x-y plane at center c, axle along z; rim highlighted
+function wheel(pts, c, r) {
+  for (let a = 0; a < 30; a++) { const ang = a / 30 * 2 * Math.PI; pts.push([c[0] + r * Math.cos(ang), c[1] + r * Math.sin(ang), c[2], 1], [c[0] + r * Math.cos(ang), c[1] + r * Math.sin(ang), c[2] + 0.04]); }
+  for (let a = 0; a < 10; a++) { const ang = a / 10 * 2 * Math.PI; pts.push([c[0] + r * 0.2 * Math.cos(ang), c[1] + r * 0.2 * Math.sin(ang), c[2]]); }
+  for (let k = 0; k < 6; k++) { const ang = k / 6 * 2 * Math.PI; for (let f = 0.2; f < 1; f += 0.12) pts.push([c[0] + r * f * Math.cos(ang), c[1] + r * f * Math.sin(ang), c[2]]); }
+}
+// filled disc (baseplate) perpendicular to y, at height y0
+function discY(pts, cx, cz, R, y0) { for (let ir = 0; ir <= 6; ir++) { const rr = R * ir / 6, n = Math.max(1, Math.round(24 * ir / 6)); for (let a = 0; a < n; a++) { const ang = a / n * 2 * Math.PI; pts.push([cx + rr * Math.cos(ang), y0, cz + rr * Math.sin(ang)]); } } }
+// rocket launcher — shoulder tube: bulbous warhead, flared rear venturi, grip
+function launcherPts() {
+  const pts = [];
+  turretBarrel(pts, [-0.75, 0.05, 0], [1, 0, 0], 1.35, 0.12);                         // main tube
+  for (let iy = 0; iy <= 10; iy++) { const f = iy / 10, x = 0.6 + f * 0.32, r = 0.16 * (1 - f * f); for (let a = 0; a < 12; a++) { const ang = a / 12 * 2 * Math.PI; pts.push([x, 0.05 + r * Math.cos(ang), r * Math.sin(ang)]); } } // warhead cone
+  pts.push([0.92, 0.05, 0, 1]);
+  for (let iy = 0; iy <= 7; iy++) { const f = iy / 7, x = -0.75 - f * 0.28, r = 0.12 + f * 0.1; for (let a = 0; a < 12; a++) { const ang = a / 12 * 2 * Math.PI; pts.push([x, 0.05 + r * Math.cos(ang), r * Math.sin(ang)]); } } // rear venturi flare
+  turretBox(pts, [-0.15, -0.28, 0], [0.06, 0.16, 0.05], 3);                           // pistol grip
+  turretBox(pts, [0.12, 0.24, 0], [0.12, 0.04, 0.03], 2);                             // top sight rail
+  return fitUnit(pts);
+}
+// mortar — steep tube on a baseplate, braced by a two-legged bipod
+function mortarPts() {
+  const pts = [], dir = normV([0.42, 1, 0]), base = [-0.28, -0.62, 0];
+  turretBarrel(pts, base, dir, 1.35, 0.085);                                          // tube
+  discY(pts, base[0], base[2], 0.34, -0.66);                                          // baseplate
+  turretRing(pts, base, dir, 0.13, 14);                                              // breech collar
+  const mid = [base[0] + dir[0] * 0.7, base[1] + dir[1] * 0.7, 0];
+  for (const dz of [-0.34, 0.34]) for (let i = 0; i <= 12; i++) { const f = i / 12; pts.push([mid[0] * f + (base[0] + 0.1) * (1 - f), mid[1] * f - 0.66 * (1 - f), dz * (1 - f)]); } // bipod legs
+  return fitUnit(pts);
+}
+// artillery — long-barreled towed field gun: wheels + split trail legs
+function artilleryPts() {
+  const pts = [], dir = normV([0.94, 0.32, 0]);
+  const mz = turretBarrel(pts, [-0.1, 0.02, 0], dir, 1.55, 0.055);                    // long barrel
+  turretRing(pts, mz, dir, 0.1, 16);                                                 // muzzle brake
+  turretBox(pts, [-0.16, -0.02, 0], [0.16, 0.16, 0.2], 4);                            // breech/cradle
+  for (const dz of [-0.4, 0.4]) wheel(pts, [-0.2, -0.4, dz], 0.36);                   // wheels
+  for (const dz of [-0.28, 0.28]) for (let i = 0; i <= 14; i++) { const f = i / 14; pts.push([-0.24 - f * 0.72, -0.02 - f * 0.62, dz * (0.3 + 0.7 * f)]); } // split trail
+  return fitUnit(pts);
+}
+// sniper rifle — flat side profile: barrel, receiver, stock, scope, bipod, mag
+function sniperPts() {
+  const pts = [], line = (x0, y0, x1, y1, w, step) => { const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy), nx = -dy / L, ny = dx / L, ns = Math.ceil(L / (step || 0.05)); for (let s = 0; s <= ns; s++) { const f = s / ns; for (let k = -w; k <= w; k += 0.05) pts.push([x0 + dx * f + nx * k, y0 + dy * f + ny * k, 0]); } };
+  line(-0.15, 0.06, 0.98, 0.06, 0.03);                                               // barrel
+  line(0.9, 0.06, 0.98, 0.06, 0.05);                                                 // muzzle brake
+  line(-0.35, 0.03, -0.05, 0.03, 0.1);                                               // receiver body
+  line(-0.95, -0.12, -0.35, 0.08, 0.07);                                             // stock
+  line(-0.5, -0.02, -0.4, -0.28, 0.04);                                              // pistol grip
+  for (let a = 0; a < 18; a++) { const ang = a / 18 * 2 * Math.PI; pts.push([-0.44 + 0.12 * Math.cos(ang), -0.12 + 0.06 * Math.sin(ang), 0]); } // trigger guard loop
+  line(-0.2, -0.05, -0.2, -0.32, 0.05);                                              // magazine
+  line(0.0, 0.16, 0.28, 0.16, 0.055);                                                // scope tube
+  line(0.03, 0.06, 0.03, 0.15, 0.02); line(0.24, 0.06, 0.24, 0.15, 0.02);            // scope mounts
+  line(0.75, 0.03, 0.62, -0.3, 0.02); line(0.75, 0.03, 0.86, -0.3, 0.02);            // bipod
+  for (const p of pts) if (Math.abs(p[1] - 0.06) < 0.001) p.push(1);                 // barrel line pops
+  return fitUnit(pts);
+}
+// cannon — old-school: flared barrel + cascabel knob on a two-wheel carriage
+function cannonPts() {
+  const pts = [], dir = normV([1, 0.1, 0]);
+  taperBarrel(pts, [-0.4, 0.08, 0], dir, 1.0, 0.19, 0.13);                            // barrel, muzzle flare
+  turretRing(pts, [0.6, 0.16, 0], dir, 0.17, 16, 1);                                 // muzzle lip
+  for (let i = 0; i < 30; i++) { const d = fibDir(i, 30); pts.push([-0.46 + d[0] * 0.09, 0.06 + d[1] * 0.09, d[2] * 0.09]); } // cascabel knob
+  for (const dz of [-0.34, 0.34]) wheel(pts, [-0.05, -0.42, dz], 0.4);               // wheels
+  turretBox(pts, [-0.1, -0.16, 0], [0.4, 0.1, 0.16], 5);                             // carriage trail
+  return fitUnit(pts);
+}
+// missile — sleek standalone rocket: pointed nose, banded body, 4 tail fins
+function missilePts() {
+  const pts = [], R = 0.16;
+  for (let iy = 0; iy <= 22; iy++) { const y = -0.75 + iy / 22 * 1.2; for (let a = 0; a < 14; a++) { const ang = a / 14 * 2 * Math.PI; pts.push([R * Math.cos(ang), y, R * Math.sin(ang)]); } } // body
+  for (let iy = 0; iy <= 12; iy++) { const f = iy / 12, y = 0.45 + f * 0.5, r = R * (1 - f * f); for (let a = 0; a < 12; a++) { const ang = a / 12 * 2 * Math.PI; pts.push([r * Math.cos(ang), y, r * Math.sin(ang)]); } } // ogive nose
+  pts.push([0, 0.95, 0, 1]);
+  for (let k = 0; k < 4; k++) { const ca = Math.cos(k / 4 * 2 * Math.PI), sa = Math.sin(k / 4 * 2 * Math.PI); for (let i = 0; i <= 8; i++) { const f = i / 8; for (let j = 0; j <= 5; j++) { const g = j / 5, x = R + g * 0.16 * (1 - f); pts.push([x * ca, -0.75 + f * 0.3, x * sa]); } } } // fins
+  return fitUnit(pts);
+}
+// grenade — fragmentation body (crosshatch grooves), fuze cap, lever, pull ring
+function grenadePts() {
+  const pts = [], RX = 0.5, RY = 0.42, y0 = -0.1;                                     // ovoid: (x,z) radius RX, y radius RY
+  for (let i = 0; i < 200; i++) { const d = fibDir(i, 200); pts.push([d[0] * RX, y0 + d[1] * RY, d[2] * RX]); } // body
+  for (const t of [-0.55, 0, 0.55]) { const cy = Math.cos(t), sy = Math.sin(t); for (let a = 0; a < 30; a++) { const ang = a / 30 * 2 * Math.PI; pts.push([RX * cy * Math.cos(ang), y0 + RY * sy, RX * cy * Math.sin(ang), 1]); } } // horizontal grooves
+  for (let k = 0; k < 8; k++) { const u = k / 8 * 2 * Math.PI; for (let j = 0; j <= 8; j++) { const t = -0.9 + 1.8 * j / 8, cy = Math.cos(t); pts.push([RX * cy * Math.cos(u), y0 + RY * Math.sin(t), RX * cy * Math.sin(u), 1]); } } // vertical meridians
+  for (let iy = 0; iy <= 5; iy++) { const y = 0.34 + iy / 5 * 0.14; for (let a = 0; a < 12; a++) { const ang = a / 12 * 2 * Math.PI; pts.push([0.16 * Math.cos(ang), y, 0.16 * Math.sin(ang)]); } } // fuze cap
+  for (let a = 0; a < 18; a++) { const ang = a / 18 * 2 * Math.PI; pts.push([0.22 + 0.1 * Math.cos(ang), 0.52 + 0.1 * Math.sin(ang), 0, 1]); } // pull ring
+  for (let i = 0; i <= 12; i++) { const f = i / 12; pts.push([0.15, 0.46 - f * 0.52, 0.17, 1]); } // safety lever down the side
+  return fitUnit(pts);
+}
+// catapult — mangonel: A-frame base, diagonal throwing arm, bucket, crossbar
+function catapultPts() {
+  const pts = [];
+  for (const dz of [-0.3, 0.3]) turretBox(pts, [-0.1, -0.55, dz], [0.7, 0.05, 0.05], 6);  // base rails
+  for (const [bx, bz] of [[-0.5, -0.3], [-0.5, 0.3], [0.3, -0.3], [0.3, 0.3]]) for (let i = 0; i <= 8; i++) { const f = i / 8; pts.push([bx * (1 - f) + (-0.1) * f * 0.2, -0.6 + f * 0.5, bz * (1 - f * 0.3)]); } // A-frame uprights
+  turretBox(pts, [-0.1, -0.05, 0], [0.02, 0.02, 0.34], 3);                            // pivot crossbar
+  const arm = normV([0.7, 1, 0]);
+  turretBarrel(pts, [-0.1, -0.05, 0], arm, 0.95, 0.04);                               // throwing arm
+  const tip = [-0.1 + arm[0] * 0.95, -0.05 + arm[1] * 0.95, 0];
+  for (let i = 0; i < 40; i++) { const d = fibDir(i, 40); if (d[1] < -0.1) continue; pts.push([tip[0] + d[0] * 0.13, tip[1] + d[1] * 0.13, d[2] * 0.13]); } // bucket cup
+  turretBox(pts, [0.28, 0.16, 0], [0.02, 0.03, 0.32], 3);                             // crossbar stop
+  return fitUnit(pts);
+}
+
 // ---- portals ---------------------------------------------------------------
 // stargate — torus ring in the x-y plane + 9 chevron studs. No fitUnit: the
 // event-horizon feature must share exact coordinates with the ring.
@@ -727,8 +833,8 @@ function dragonPts() {
 }
 
 // ---- shapes ----------------------------------------------------------------
-const CATEGORIES = ['primitives', 'mathematical', 'fun', 'organic', 'origami', 'portals'];
-const CAT_LABEL = { primitives: 'Primitives', mathematical: 'Mathematical', fun: 'Fun', organic: 'Organic', origami: 'Origami', portals: 'Portals' };
+const CATEGORIES = ['primitives', 'mathematical', 'fun', 'weapons', 'organic', 'origami', 'portals'];
+const CAT_LABEL = { primitives: 'Primitives', mathematical: 'Mathematical', fun: 'Fun', weapons: 'Weapons', organic: 'Organic', origami: 'Origami', portals: 'Portals' };
 const SHAPES = [
   // primitives
   { key: 'sphere', label: 'Sphere', sub: 'fibonacci lattice', cat: 'primitives', pts: spherePts() },
@@ -809,7 +915,16 @@ const SHAPES = [
   { key: 'torii', label: 'Torii Gate', sub: 'pillars + kasagi', cat: 'portals', pts: toriiPts() },
   { key: 'moongate', label: 'Moon Gate', sub: 'wall + void', cat: 'portals', pts: moongatePts() },
   { key: 'tesseract', label: 'Tesseract Door', sub: 'nested cubes', cat: 'portals', pts: tesseractPts() },
-  { key: 'rift', label: 'Rift', sub: 'tear · pulses', cat: 'portals', pts: riftPts(), flat: true, features: riftFeatures }
+  { key: 'rift', label: 'Rift', sub: 'tear · pulses', cat: 'portals', pts: riftPts(), flat: true, features: riftFeatures },
+  // weapons
+  { key: 'launcher', label: 'Rocket Launcher', sub: 'tube + warhead', cat: 'weapons', pts: launcherPts() },
+  { key: 'mortar', label: 'Mortar', sub: 'tube + bipod + plate', cat: 'weapons', pts: mortarPts() },
+  { key: 'artillery', label: 'Artillery', sub: 'field gun · wheels', cat: 'weapons', pts: artilleryPts() },
+  { key: 'sniper', label: 'Sniper Rifle', sub: 'scope + bipod · flat', cat: 'weapons', pts: sniperPts(), flat: true },
+  { key: 'cannon', label: 'Cannon', sub: 'old-school · wheeled', cat: 'weapons', pts: cannonPts() },
+  { key: 'missile', label: 'Missile', sub: 'nose + fins', cat: 'weapons', pts: missilePts() },
+  { key: 'grenade', label: 'Grenade', sub: 'frag + lever + pin', cat: 'weapons', pts: grenadePts() },
+  { key: 'catapult', label: 'Catapult', sub: 'arm + bucket', cat: 'weapons', pts: catapultPts() }
 ];
 const SHAPE_BY_KEY = Object.fromEntries(SHAPES.map((s) => [s.key, s]));
 
