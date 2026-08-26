@@ -1328,6 +1328,54 @@ function wvShockPts() { const pts = [], R = 0.9; for (let i = 0; i < 340; i++) {
 // 12. spiral wave — a scroll wavefront spiraling out with a height ripple
 function wvSpiralPts() { const pts = []; for (let t = 0; t <= 260; t++) { const f = t / 260, ang = f * 5.5 * 2 * Math.PI, r = 0.95 * f; pts.push([r * Math.cos(ang), 0.28 * Math.sin(f * 22), r * Math.sin(ang)]); if (t % 9 === 0) pts.push([r * Math.cos(ang), 0.28 * Math.sin(f * 22), r * Math.sin(ang), 1]); } return fitUnit(pts); }
 
+// ---- gem cuts ---------------------------------------------------------------
+// girdle outline -> flat table + faceted crown + pavilion (culet point or keel)
+function gemCut(outline, N, o) { o = o || {}; const table = o.table == null ? 0.55 : o.table, crownH = o.crownH || 0.34, pavH = o.pavH || 0.78, keel = o.keel;
+  const G = [], T = []; for (let i = 0; i < N; i++) { const p = outline(i / N); G.push([p[0], 0, p[1]]); T.push([p[0] * table, crownH, p[1] * table]); }
+  const pts = [];
+  for (let i = 0; i < N; i++) { traceEdge(pts, G[i], G[(i + 1) % N], 5, 1); traceEdge(pts, T[i], T[(i + 1) % N], 4, 1); traceEdge(pts, G[i], T[i], 4, 1); } // girdle, table, crown edges
+  const tc = [0, crownH, 0]; for (let i = 0; i < N; i++) fillTri(pts, tc, T[i], T[(i + 1) % N], 3);                                       // table fill
+  for (let i = 0; i < N; i++) { fillTri(pts, G[i], G[(i + 1) % N], T[(i + 1) % N], 2); fillTri(pts, G[i], T[(i + 1) % N], T[i], 2); }     // crown facets
+  const ap = (v) => keel ? [Math.max(-keel, Math.min(keel, v[0])), -pavH, 0] : [0, -pavH, 0];
+  for (let i = 0; i < N; i++) { const a = ap(G[i]), b = ap(G[(i + 1) % N]); traceEdge(pts, G[i], a, 4, 1); fillTri(pts, G[i], G[(i + 1) % N], a, 2); if (a[0] !== b[0]) fillTri(pts, G[(i + 1) % N], b, a, 2); }
+  if (!keel) pts.push([0, -pavH, 0, 1]);
+  return pts; }
+function gemPoly(verts) { return (t) => { const s = t * verts.length, i = Math.floor(s) % verts.length, f = s - Math.floor(s), a = verts[i], b = verts[(i + 1) % verts.length]; return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]; }; }
+const goRound = (t) => { const a = t * 2 * Math.PI; return [0.85 * Math.cos(a), 0.85 * Math.sin(a)]; };
+const goTrill = (t) => { const a = t * 2 * Math.PI, r = 0.6 + 0.3 * Math.cos(3 * a + Math.PI); return [r * Math.cos(a), r * Math.sin(a)]; };
+const goHeart = (t) => { const a = t * 2 * Math.PI, x = 16 * Math.pow(Math.sin(a), 3), y = 13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a) - Math.cos(4 * a); return [x / 17 * 0.95, y / 17 * 0.95]; };
+const goCushion = (t) => { const a = t * 2 * Math.PI, cx = Math.sign(Math.cos(a)) * Math.pow(Math.abs(Math.cos(a)), 0.62), cz = Math.sign(Math.sin(a)) * Math.pow(Math.abs(Math.sin(a)), 0.62); return [0.82 * cx, 0.82 * cz]; };
+const goOval = (t) => { const a = t * 2 * Math.PI; return [0.95 * Math.cos(a), 0.62 * Math.sin(a)]; };
+const goPear = (t) => { const a = t * 2 * Math.PI, top = Math.max(0, Math.cos(a)); let x = 0.66 * Math.sin(a), z = 0.55 * Math.cos(a); z += 0.32 * top * top; x *= (1 - 0.55 * top * top); return [x, z]; };
+const goMarquise = (t) => { const a = t * 2 * Math.PI; return [0.95 * Math.cos(a), 0.44 * Math.sign(Math.sin(a)) * Math.pow(Math.abs(Math.sin(a)), 0.7)]; };
+const goSquare = gemPoly([[0.72, 0.72], [-0.72, 0.72], [-0.72, -0.72], [0.72, -0.72]]);
+const goLozenge = gemPoly([[0, 0.95], [0.56, 0], [0, -0.95], [-0.56, 0]]);
+const goRadiant = gemPoly([[0.72, 0.46], [0.46, 0.72], [-0.46, 0.72], [-0.72, 0.46], [-0.72, -0.46], [-0.46, -0.72], [0.46, -0.72], [0.72, -0.46]]);
+const goEmerald = gemPoly([[0.56, 0.72], [0.42, 0.86], [-0.42, 0.86], [-0.56, 0.72], [-0.56, -0.72], [-0.42, -0.86], [0.42, -0.86], [0.56, -0.72]]);
+function gemSinglePts() { return fitUnit(gemCut((t) => { const a = t * 2 * Math.PI; return [0.82 * Math.cos(a), 0.82 * Math.sin(a)]; }, 8, { table: 0.62, crownH: 0.3, pavH: 0.72 })); }
+function gemBrilliantPts() { return fitUnit(gemCut(goRound, 20, { table: 0.52, crownH: 0.36, pavH: 0.82 })); }
+function gemPortuguesePts() { const pts = gemCut(goRound, 24, { table: 0.46, crownH: 0.42, pavH: 0.85 });
+  for (let i = 0; i < 24; i++) { const a = i / 24 * 2 * Math.PI, a2 = (i + 0.5) / 24 * 2 * Math.PI; traceEdge(pts, [0.85 * Math.cos(a), 0, 0.85 * Math.sin(a)], [0.6 * Math.cos(a2), 0.2, 0.6 * Math.sin(a2)], 3, 1); } // extra crown facet ring
+  return fitUnit(pts); }
+function gemTrillionPts() { return fitUnit(gemCut(goTrill, 18, { table: 0.5, crownH: 0.32, pavH: 0.7 })); }
+function gemHeartPts() { return fitUnit(gemCut(goHeart, 28, { table: 0.5, crownH: 0.34, pavH: 0.72 })); }
+function gemRadiantPts() { return fitUnit(gemCut(goRadiant, 8, { table: 0.58, crownH: 0.34, pavH: 0.8, keel: 0.28 })); }
+function gemPrincessPts() { return fitUnit(gemCut(goSquare, 4, { table: 0.5, crownH: 0.3, pavH: 0.92 })); }
+function gemFrenchPts() { const N = 4, G = [], pts = []; for (let i = 0; i < N; i++) { const p = goSquare(i / N); G.push([p[0], 0, p[1]]); }
+  const tc = [0, 0.3, 0]; for (let i = 0; i < N; i++) { traceEdge(pts, G[i], G[(i + 1) % N], 6, 1); traceEdge(pts, G[i], tc, 6, 1); fillTri(pts, G[i], G[(i + 1) % N], tc, 4); } // X-cross crown
+  pts.push([0, 0.3, 0, 1]); for (let i = 0; i < N; i++) fillTri(pts, G[i], G[(i + 1) % N], [0, -0.85, 0], 3); pts.push([0, -0.85, 0, 1]); return fitUnit(pts); }
+function gemCushionPts() { return fitUnit(gemCut(goCushion, 20, { table: 0.54, crownH: 0.34, pavH: 0.8 })); }
+function gemLozengePts() { return fitUnit(gemCut(goLozenge, 4, { table: 0.5, crownH: 0.28, pavH: 0.7, keel: 0.2 })); }
+function gemOvalPts() { return fitUnit(gemCut(goOval, 22, { table: 0.5, crownH: 0.34, pavH: 0.82, keel: 0.4 })); }
+function gemEmeraldPts() { const pts = [];
+  for (const [sc, y] of [[1.0, 0], [0.82, 0.12], [0.64, 0.24]]) for (let i = 0; i < 8; i++) { const p = goEmerald(i / 8), q = goEmerald((i + 1) / 8); traceEdge(pts, [p[0] * sc, y, p[1] * sc], [q[0] * sc, y, q[1] * sc], 5, 1); } // step crown
+  for (let i = 0; i < 8; i++) { const p = goEmerald(i / 8); traceEdge(pts, [p[0], 0, p[1]], [p[0] * 0.64, 0.24, p[1] * 0.64], 4, 0); }
+  const tc = [0, 0.24, 0]; for (let i = 0; i < 8; i++) { const p = goEmerald(i / 8), q = goEmerald((i + 1) / 8); fillTri(pts, tc, [p[0] * 0.64, 0.24, p[1] * 0.64], [q[0] * 0.64, 0.24, q[1] * 0.64], 3); }
+  for (const [sc, y] of [[1.0, 0], [0.72, -0.3], [0.44, -0.58]]) for (let i = 0; i < 8; i++) { const p = goEmerald(i / 8), q = goEmerald((i + 1) / 8); traceEdge(pts, [p[0] * sc, y, p[1] * sc], [q[0] * sc, y, q[1] * sc], 5, 1); } // step pavilion
+  for (let i = 0; i < 8; i++) { const p = goEmerald(i / 8), q = goEmerald((i + 1) / 8); fillTri(pts, [p[0], 0, p[1]], [q[0], 0, q[1]], [0, -0.78, 0], 2); } pts.push([0, -0.78, 0, 1]); return fitUnit(pts); }
+function gemPearPts() { return fitUnit(gemCut(goPear, 22, { table: 0.5, crownH: 0.34, pavH: 0.8, keel: 0.3 })); }
+function gemMarquisePts() { return fitUnit(gemCut(goMarquise, 22, { table: 0.46, crownH: 0.32, pavH: 0.8, keel: 0.5 })); }
+
 // ---- portals ---------------------------------------------------------------
 // stargate — torus ring in the x-y plane + 9 chevron studs. No fitUnit: the
 // event-horizon feature must share exact coordinates with the ring.
@@ -1513,8 +1561,8 @@ function dragonPts() {
 }
 
 // ---- shapes ----------------------------------------------------------------
-const CATEGORIES = ['primitives', 'mathematical', 'fun', 'weapons', 'sentries', 'arms', 'shields', 'towers', 'spheres', 'trees', 'obelisks', 'waves', 'organic', 'origami', 'portals'];
-const CAT_LABEL = { primitives: 'Primitives', mathematical: 'Mathematical', fun: 'Fun', weapons: 'Weapons', sentries: 'Sentries', arms: 'Robotic Arms', shields: 'Shields', towers: 'Towers', spheres: 'Floating Spheres', trees: 'Trees', obelisks: 'Obelisks', waves: 'Waves', organic: 'Organic', origami: 'Origami', portals: 'Portals' };
+const CATEGORIES = ['primitives', 'mathematical', 'fun', 'weapons', 'sentries', 'arms', 'shields', 'towers', 'spheres', 'trees', 'obelisks', 'waves', 'gems', 'organic', 'origami', 'portals'];
+const CAT_LABEL = { primitives: 'Primitives', mathematical: 'Mathematical', fun: 'Fun', weapons: 'Weapons', sentries: 'Sentries', arms: 'Robotic Arms', shields: 'Shields', towers: 'Towers', spheres: 'Floating Spheres', trees: 'Trees', obelisks: 'Obelisks', waves: 'Waves', gems: 'Gem Cuts', organic: 'Organic', origami: 'Origami', portals: 'Portals' };
 const SHAPES = [
   // primitives
   { key: 'sphere', label: 'Sphere', sub: 'fibonacci lattice', cat: 'primitives', pts: spherePts() },
@@ -1704,7 +1752,22 @@ const SHAPES = [
   { key: 'wave-waveform', label: 'Sound Waveform', sub: 'audio clip', cat: 'waves', pts: wvWaveformPts(), flat: true },
   { key: 'wave-equalizer', label: 'Equalizer', sub: 'spectrum bars', cat: 'waves', pts: wvEqualizerPts(), flat: true },
   { key: 'wave-shock', label: 'Shockwave', sub: 'blast dome', cat: 'waves', pts: wvShockPts() },
-  { key: 'wave-spiral', label: 'Spiral Wave', sub: 'scroll front', cat: 'waves', pts: wvSpiralPts() }
+  { key: 'wave-spiral', label: 'Spiral Wave', sub: 'scroll front', cat: 'waves', pts: wvSpiralPts() },
+  // gem cuts
+  { key: 'gem-single', label: 'Single Cut', sub: 'octagon · few facets', cat: 'gems', pts: gemSinglePts() },
+  { key: 'gem-brilliant', label: 'Brilliant', sub: 'round · classic', cat: 'gems', pts: gemBrilliantPts() },
+  { key: 'gem-portuguese', label: 'Portuguese', sub: 'round · extra facets', cat: 'gems', pts: gemPortuguesePts() },
+  { key: 'gem-trillion', label: 'Trillion', sub: 'rounded triangle', cat: 'gems', pts: gemTrillionPts() },
+  { key: 'gem-heart', label: 'Heart', sub: 'heart girdle', cat: 'gems', pts: gemHeartPts() },
+  { key: 'gem-radiant', label: 'Radiant', sub: 'cut-corner square', cat: 'gems', pts: gemRadiantPts() },
+  { key: 'gem-princess', label: 'Princess', sub: 'square · deep pavilion', cat: 'gems', pts: gemPrincessPts() },
+  { key: 'gem-french', label: 'French', sub: 'square · X crown', cat: 'gems', pts: gemFrenchPts() },
+  { key: 'gem-cushion', label: 'Cushion', sub: 'rounded square', cat: 'gems', pts: gemCushionPts() },
+  { key: 'gem-lozenge', label: 'Lozenge', sub: 'rhombus', cat: 'gems', pts: gemLozengePts() },
+  { key: 'gem-oval', label: 'Oval', sub: 'ellipse · keel', cat: 'gems', pts: gemOvalPts() },
+  { key: 'gem-emerald', label: 'Emerald', sub: 'step cut · rectangle', cat: 'gems', pts: gemEmeraldPts() },
+  { key: 'gem-pear', label: 'Pear', sub: 'teardrop', cat: 'gems', pts: gemPearPts() },
+  { key: 'gem-marquise', label: 'Marquise', sub: 'pointed ellipse', cat: 'gems', pts: gemMarquisePts() }
 ];
 const SHAPE_BY_KEY = Object.fromEntries(SHAPES.map((s) => [s.key, s]));
 
