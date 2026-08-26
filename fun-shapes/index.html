@@ -1237,6 +1237,55 @@ function treeBarePts() { const pts = [];
   function branch(a, dir, len, r, depth) { const b = [a[0] + dir[0] * len, a[1] + dir[1] * len, a[2] + dir[2] * len]; strut(pts, a, b, r); if (depth <= 0) { pts.push([b[0], b[1], b[2], 1]); return; } for (let k = 0; k < 2 + (depth % 2); k++) { const t = hsh(depth * 7 + k + len * 11), ang = t * 6.28, sp = 0.5 + 0.4 * hsh(k + depth); const nd = normV([dir[0] + sp * Math.cos(ang), dir[1] + 0.5, dir[2] + sp * Math.sin(ang)]); branch(b, nd, len * 0.72, r * 0.65, depth - 1); } }
   branch([0, -0.92, 0], [0, 1, 0], 0.55, 0.09, 3); return fitUnit(pts); }
 
+// ---- obelisks ---------------------------------------------------------------
+// square ring (perimeter) of half-width w at height y, per points per edge
+function sqRing(out, cx, cz, w, y, per, hi) { const cor = [[-w, -w], [w, -w], [w, w], [-w, w]]; for (let s = 0; s < 4; s++) { const a = cor[s], b = cor[(s + 1) % 4]; for (let i = 0; i < per; i++) { const f = i / per, p = [cx + a[0] + (b[0] - a[0]) * f, y, cz + a[1] + (b[1] - a[1]) * f]; if (hi) p.push(1); out.push(p); } } }
+// tapering square shaft + pyramidion; glyphEvery highlights bands, gild the cap
+function shaft(pts, cx, cz, yb, h, wb, wt, capH, glyphEvery, gild) {
+  const N = Math.max(8, Math.round(h / 0.08));
+  for (let iy = 0; iy <= N; iy++) { const f = iy / N, y = yb + f * h, w = wb + (wt - wb) * f, hi = glyphEvery && iy % glyphEvery === 0 && iy > 1 && iy < N - 1; sqRing(pts, cx, cz, w, y, 7, hi); }
+  const yt = yb + h, M = 6; for (let iy = 0; iy <= M; iy++) { const f = iy / M, y = yt + f * capH, w = wt * (1 - f); sqRing(pts, cx, cz, w, y, 6, gild); }
+  pts.push([cx, yt + capH, cz, 1]); return yt + capH;
+}
+function plinth(pts, cx, cz, y, w, hy) { turretBox(pts, [cx, y, cz], [w, hy, w], 5); }
+// 1. egyptian — tapering shaft, glyph bands, gilded pyramidion, low plinth
+function obEgyptianPts() { const pts = []; plinth(pts, 0, 0, -0.86, 0.3, 0.08); shaft(pts, 0, 0, -0.78, 1.42, 0.2, 0.12, 0.24, 3, 1); return fitUnit(pts); }
+// 2. washington — tall slim monument, subtle taper, plain, tiny base
+function obWashingtonPts() { const pts = []; plinth(pts, 0, 0, -0.9, 0.22, 0.05); shaft(pts, 0, 0, -0.85, 1.62, 0.15, 0.11, 0.3, 0, 0); return fitUnit(pts); }
+// 3. obelisk on plinth — stepped pedestal base
+function obPlinthPts() { const pts = []; plinth(pts, 0, 0, -0.88, 0.36, 0.07); plinth(pts, 0, 0, -0.74, 0.28, 0.06); plinth(pts, 0, 0, -0.62, 0.22, 0.05); shaft(pts, 0, 0, -0.56, 1.2, 0.18, 0.11, 0.22, 3, 0); return fitUnit(pts); }
+// 4. cleopatra's needle — shaft on a pedestal with four corner bronze supports
+function obCleopatraPts() { const pts = []; plinth(pts, 0, 0, -0.8, 0.3, 0.14); shaft(pts, 0, 0, -0.64, 1.3, 0.19, 0.12, 0.22, 4, 1);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) for (let i = 0; i < 24; i++) { const d = fibDir(i, 24); pts.push([sx * 0.24 + d[0] * 0.08, -0.6 + d[1] * 0.08, sz * 0.24 + d[2] * 0.08]); } return fitUnit(pts); }
+// 5. twin obelisks — a matched pair on a shared base
+function obTwinPts() { const pts = []; plinth(pts, 0, 0, -0.9, 0.62, 0.06); for (const cx of [-0.34, 0.34]) shaft(pts, cx, 0, -0.84, 1.2, 0.14, 0.09, 0.18, 3, 1); return fitUnit(pts); }
+// 6. broken obelisk — lower shaft with a jagged break, upper chunk toppled beside
+function obBrokenPts() { const pts = []; plinth(pts, 0, 0, -0.86, 0.3, 0.08);
+  const N = 12; for (let iy = 0; iy <= N; iy++) { const f = iy / N, y = -0.78 + f * 0.85, w = 0.2 + (0.15 - 0.2) * f; sqRing(pts, 0, 0, w, y, 7, iy % 3 === 0 && iy > 1); }
+  for (let a = 0; a < 16; a++) { const ang = a / 16 * 2 * Math.PI; pts.push([0.16 * Math.cos(ang), 0.1 + 0.05 * hsh(a), 0.16 * Math.sin(ang), 1]); } // jagged break face
+  const tmp = []; shaft(tmp, 0, 0, 0, 0.5, 0.14, 0.1, 0.2, 3, 1); const ca = Math.cos(1.15), sa = Math.sin(1.15); for (const p of tmp) pts.push([0.55 + p[0] * ca - p[1] * sa, -0.6 + p[0] * sa + p[1] * ca, p[2]]); // toppled top chunk
+  return fitUnit(pts); }
+// 7. unfinished obelisk — lying on its side on a rough quarry bed
+function obUnfinishedPts() { const pts = [], tmp = []; shaft(tmp, 0, 0, -0.7, 1.5, 0.22, 0.14, 0.26, 0, 0);
+  for (const p of tmp) pts.push([p[1], -0.5 - p[0], p[2]]);                            // rotate -90 about z: lay it down
+  for (let i = 0; i < 120; i++) { const d = fibDir(i, 120); if (d[1] > 0) continue; pts.push([(hsh(i) * 2 - 1) * 0.9, -0.78 + d[1] * 0.12 * hsh(i * 2), (hsh(i * 3) * 2 - 1) * 0.4]); } // quarry rubble bed
+  return fitUnit(pts); }
+// 8. monolith — smooth tall non-tapering slab (2001-style)
+function obMonolithPts() { const pts = []; turretBox(pts, [0, 0, 0], [0.3, 0.92, 0.11], 13);
+  for (const sy of [-1, 1]) for (let i = 0; i < 20; i++) { const f = i / 20; pts.push([-0.3 + f * 0.6, sy * 0.92, 0, 1]); } return fitUnit(pts); }
+// 9. crystal obelisk — faceted gem spire: narrow base, wide middle, sharp point
+function obCrystalPts() { const pts = [], N = 20; for (let iy = 0; iy <= N; iy++) { const f = iy / N, y = -0.85 + f * 1.7, w = 0.34 * Math.sin(f * Math.PI * 0.85 + 0.1); for (let s = 0; s < 4; s++) { const ang = Math.PI / 4 + s / 4 * 2 * Math.PI, a2 = Math.PI / 4 + (s + 1) / 4 * 2 * Math.PI; pts.push([w * Math.cos(ang), y, w * Math.sin(ang), iy % 4 === 0 ? 1 : 0]); for (let e = 1; e < 4; e++) { const g = e / 4; pts.push([w * (Math.cos(ang) * (1 - g) + Math.cos(a2) * g), y, w * (Math.sin(ang) * (1 - g) + Math.sin(a2) * g)]); } } }
+  pts.push([0, 0.92, 0, 1]); return fitUnit(pts); }
+// 10. stele — round-topped inscribed slab
+function obStelePts() { const pts = [], hw = 0.42, hh = 0.72, D = 0.1;
+  const inside = (x, y) => { if (Math.abs(x) > hw || y < -hh) return false; if (y > hh - hw) return Math.hypot(x, y - (hh - hw)) <= hw; return y <= hh; };
+  for (const z of [-D, D]) for (let i = 0; i <= 24; i++) for (let j = 0; j <= 34; j++) { const x = -hw + 2 * hw * i / 24, y = -hh + (hh + hw) * j / 34 * 1.15; if (!inside(x, y)) continue; const edge = !inside(x - 0.04, y) || !inside(x + 0.04, y) || !inside(x, y - 0.05) || !inside(x, y + 0.05); pts.push(edge ? [x, y, z, 1] : [x, y, z]); }
+  for (const gy of [0.3, 0.1, -0.1, -0.3, -0.5]) for (let i = 0; i <= 12; i++) pts.push([-0.3 + i / 12 * 0.6, gy, D, 1]); // inscription rows
+  return fitUnit(pts); }
+// 11. stepped cenotaph — tapered pylon with setback steps + flat cap
+function obCenotaphPts() { const pts = []; for (const [y, w, hy] of [[-0.9, 0.34, 0.16], [-0.62, 0.3, 0.32], [-0.16, 0.24, 0.4], [0.5, 0.18, 0.14]]) turretBox(pts, [0, y + hy, 0], [w, hy, w], 6);
+  turretBox(pts, [0, 0.7, 0], [0.22, 0.03, 0.22], 4); return fitUnit(pts); }
+
 // ---- portals ---------------------------------------------------------------
 // stargate — torus ring in the x-y plane + 9 chevron studs. No fitUnit: the
 // event-horizon feature must share exact coordinates with the ring.
@@ -1422,8 +1471,8 @@ function dragonPts() {
 }
 
 // ---- shapes ----------------------------------------------------------------
-const CATEGORIES = ['primitives', 'mathematical', 'fun', 'weapons', 'sentries', 'arms', 'shields', 'towers', 'spheres', 'trees', 'organic', 'origami', 'portals'];
-const CAT_LABEL = { primitives: 'Primitives', mathematical: 'Mathematical', fun: 'Fun', weapons: 'Weapons', sentries: 'Sentries', arms: 'Robotic Arms', shields: 'Shields', towers: 'Towers', spheres: 'Floating Spheres', trees: 'Trees', organic: 'Organic', origami: 'Origami', portals: 'Portals' };
+const CATEGORIES = ['primitives', 'mathematical', 'fun', 'weapons', 'sentries', 'arms', 'shields', 'towers', 'spheres', 'trees', 'obelisks', 'organic', 'origami', 'portals'];
+const CAT_LABEL = { primitives: 'Primitives', mathematical: 'Mathematical', fun: 'Fun', weapons: 'Weapons', sentries: 'Sentries', arms: 'Robotic Arms', shields: 'Shields', towers: 'Towers', spheres: 'Floating Spheres', trees: 'Trees', obelisks: 'Obelisks', organic: 'Organic', origami: 'Origami', portals: 'Portals' };
 const SHAPES = [
   // primitives
   { key: 'sphere', label: 'Sphere', sub: 'fibonacci lattice', cat: 'primitives', pts: spherePts() },
@@ -1588,7 +1637,19 @@ const SHAPES = [
   { key: 'tree-baobab', label: 'Baobab', sub: 'bottle trunk', cat: 'trees', sway: true, pts: treeBaobabPts() },
   { key: 'tree-cherry', label: 'Cherry Blossom', sub: 'speckled canopy', cat: 'trees', sway: true, pts: treeCherryPts() },
   { key: 'tree-bonsai', label: 'Bonsai', sub: 'twisted · pads', cat: 'trees', sway: true, pts: treeBonsaiPts() },
-  { key: 'tree-bare', label: 'Bare Tree', sub: 'branching · leafless', cat: 'trees', sway: true, pts: treeBarePts() }
+  { key: 'tree-bare', label: 'Bare Tree', sub: 'branching · leafless', cat: 'trees', sway: true, pts: treeBarePts() },
+  // obelisks
+  { key: 'ob-egyptian', label: 'Egyptian Obelisk', sub: 'glyphs + gilded cap', cat: 'obelisks', pts: obEgyptianPts() },
+  { key: 'ob-washington', label: 'Washington Monument', sub: 'tall · slim', cat: 'obelisks', pts: obWashingtonPts() },
+  { key: 'ob-plinth', label: 'Obelisk on Plinth', sub: 'stepped pedestal', cat: 'obelisks', pts: obPlinthPts() },
+  { key: 'ob-cleopatra', label: "Cleopatra's Needle", sub: 'corner supports', cat: 'obelisks', pts: obCleopatraPts() },
+  { key: 'ob-twin', label: 'Twin Obelisks', sub: 'matched pair', cat: 'obelisks', pts: obTwinPts() },
+  { key: 'ob-broken', label: 'Broken Obelisk', sub: 'toppled top', cat: 'obelisks', pts: obBrokenPts() },
+  { key: 'ob-unfinished', label: 'Unfinished Obelisk', sub: 'lying · quarry', cat: 'obelisks', pts: obUnfinishedPts() },
+  { key: 'ob-monolith', label: 'Monolith', sub: 'smooth slab', cat: 'obelisks', pts: obMonolithPts() },
+  { key: 'ob-crystal', label: 'Crystal Obelisk', sub: 'faceted spire', cat: 'obelisks', pts: obCrystalPts() },
+  { key: 'ob-stele', label: 'Stele', sub: 'round-top · inscribed', cat: 'obelisks', pts: obStelePts() },
+  { key: 'ob-cenotaph', label: 'Cenotaph', sub: 'stepped pylon', cat: 'obelisks', pts: obCenotaphPts() }
 ];
 const SHAPE_BY_KEY = Object.fromEntries(SHAPES.map((s) => [s.key, s]));
 
